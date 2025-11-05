@@ -4,7 +4,8 @@ from pathlib import Path
 import pandas as pd
 
 from minutes_api import minutes_bp
-from daily_api import daily_bp  # NEW
+from daily_api import daily_bp
+app.register_blueprint(daily_bp)
 
 ART_DIR = Path("artifacts")
 
