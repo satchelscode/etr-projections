@@ -2,113 +2,191 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ETR — Minutes → Projections</title>
-  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css" />
   <style>
-    body { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-    table input { width: 70px; }
-    .row { display: flex; gap: 12px; align-items: center; }
-    .row > * { flex: 1; }
+    :root { color-scheme: light; }
+    html, body {
+      background: #ffffff;
+      color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+    h2 { margin: 8px 0 20px; font-weight: 700; }
+    h3 { margin: 28px 0 12px; }
+    p { margin: 8px 0 16px; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      height: 40px;
+      padding: 8px 10px;
+      border: 1px solid #d0d5dd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    input[type="text"]::placeholder,
+    input[type="number"]::placeholder { color: #98a2b3; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 8px 0 16px;
+      flex-wrap: wrap;
+    }
+    button {
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid #d0d5dd;
+      background: #f2f4f7;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    button.primary {
+      background: #0ea5e9;
+      color: #fff;
+      border-color: #0ea5e9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    thead th {
+      text-align: left;
+      font-size: 12px;
+      color: #475467;
+      font-weight: 700;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 8px;
+      white-space: nowrap;
+    }
+    tbody td {
+      border-bottom: 1px solid #f2f4f7;
+      padding: 8px;
+      font-size: 14px;
+    }
+    tbody tr:hover { background: #fafafa; }
+    td input[type="number"] { width: 70px; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
+    @media (max-width: 860px) {
+      .row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
+  <div class="container">
+    <h2>ETR — Minutes → Projections</h2>
 
-  <h2>ETR — Minutes → Projections</h2>
+    <h3>Single Player</h3>
+    <form id="singleForm">
+      <div class="row">
+        <div>
+          <label>Player</label>
+          <input id="playerSearch" type="text" placeholder="e.g. kaw" />
+          <select id="player"></select>
+        </div>
+        <div>
+          <label>Opponent</label>
+          <input id="opponentSearch" type="text" placeholder="e.g. okc" />
+          <select id="opponent"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Minutes</label>
+          <input id="minutes" type="number" placeholder="e.g. 34" />
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Get Projections</button>
+        </div>
+      </div>
+    </form>
 
-  <h3>Single Player</h3>
-  <form id="singleForm">
+    <table id="singleTbl">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Opponent</th>
+          <th>Minutes</th>
+          <th>PTS</th>
+          <th>REB</th>
+          <th>AST</th>
+          <th>3PM</th>
+          <th>STL</th>
+          <th>BLK</th>
+          <th>TO</th>
+          <th>PRA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <hr />
+
+    <h3>Team Sheet (Roster → Minutes → Project All)</h3>
+    <p>Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV</p>
+
     <div class="row">
-      <label>
-        Player
-        <input id="playerSearch" type="text" placeholder="type to filter (e.g., kaw)" />
-        <select id="player"></select>
-      </label>
-      <label>
-        Opponent
-        <input id="opponentSearch" type="text" placeholder="type to filter (e.g., okc)" />
-        <select id="opponent"></select>
-      </label>
-    </div>
-    <div class="row">
-      <label>
-        Minutes
-        <input id="minutes" type="number" placeholder="e.g. 34" />
-      </label>
-      <div style="flex:0 0 auto; align-self:flex-end;">
-        <button type="submit">Get Projections</button>
+      <div>
+        <label>Roster Team</label>
+        <select id="teamForRoster"></select>
+      </div>
+      <div>
+        <label>Opponent Team</label>
+        <select id="teamOpp"></select>
       </div>
     </div>
-  </form>
 
-  <table id="singleTbl">
-    <thead>
-      <tr>
-        <th>Player</th>
-        <th>Opponent</th>
-        <th>Minutes</th>
-        <th>PTS</th>
-        <th>REB</th>
-        <th>AST</th>
-        <th>3PM</th>
-        <th>STL</th>
-        <th>BLK</th>
-        <th>TO</th>
-        <th>PRA</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <hr />
-
-  <h3>Team Sheet (Roster → Minutes → Project All)</h3>
-  <p>Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV</p>
-
-  <div class="row">
-    <label>
-      Roster Team
-      <select id="teamForRoster"></select>
-    </label>
-    <label>
-      Opponent Team
-      <select id="teamOpp"></select>
-    </label>
-  </div>
-
-  <div class="row">
-    <label>
-      Default minutes
-      <input id="defaultTeamMinutes" type="number" value="30" />
-    </label>
-    <div style="flex:0 0 auto; align-self:flex-end; display:flex; gap:10px;">
-      <button id="loadRosterBtn" type="button">Load Roster</button>
-      <button id="projectRosterBtn" type="button">Project All</button>
-      <button id="downloadCsvBtn" type="button">Download CSV</button>
+    <div class="row">
+      <div>
+        <label>Default minutes</label>
+        <input id="defaultTeamMinutes" type="number" value="30" />
+      </div>
+      <div class="actions">
+        <button id="loadRosterBtn" type="button">Load Roster</button>
+        <button id="projectRosterBtn" type="button" class="primary">Project All</button>
+        <button id="downloadCsvBtn" type="button">Download CSV</button>
+      </div>
     </div>
+
+    <table id="teamTbl">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Opponent</th>
+          <th>Minutes</th>
+          <th>PTS</th>
+          <th>REB</th>
+          <th>AST</th>
+          <th>3PM</th>
+          <th>STL</th>
+          <th>BLK</th>
+          <th>TO</th>
+          <th>PRA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-  <table id="teamTbl">
-    <thead>
-      <tr>
-        <th>Player</th>
-        <th>Opponent</th>
-        <th>Minutes</th>
-        <th>PTS</th>
-        <th>REB</th>
-        <th>AST</th>
-        <th>3PM</th>
-        <th>STL</th>
-        <th>BLK</th>
-        <th>TO</th>
-        <th>PRA</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <!-- note: cache-buster set back to stable version -->
-  <script src="/static/main.js?v=7"></script>
+  <!-- bump the query param to bust caches if needed -->
+  <script src="/static/main.js?v=8"></script>
 </body>
 </html>
 
