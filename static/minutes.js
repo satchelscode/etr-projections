@@ -1,70 +1,137 @@
-// static/minutes.js
-(function () {
-  const qs  = (s, r=document) => r.querySelector(s);
-  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
-  const status = (m) => { const el = qs("#minutes-upload-status"); if (el) el.textContent = m || ""; };
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ETR — Minutes → Projections</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fafafa; margin: 0; }
+    .card { max-width: 1100px; margin: 40px auto; background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    h2 { margin-top: 0; }
+    label { font-weight: 600; }
+    input, select { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    button { margin-top: 12px; padding: 10px 16px; background: #000; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .muted { color: #555; font-size: 14px; margin-bottom: 12px; }
+    .warn { background: #ffe5e5; color: #a00; border: 1px solid #f00; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
+    .stack { display: flex; flex-direction: column; gap: 6px; }
+    hr { margin: 28px 0; border: none; border-top: 1px solid #ddd; }
+    .labelrow { display: flex; justify-content: space-between; align-items: center; }
+    .subtext { font-size: 12px; color: #777; }
+    .controls-inline { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+    .status { font-size:12px; opacity:0.8; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>ETR — Minutes → Projections</h2>
+  <p class="muted">Pick a player, opponent, and enter your minutes. We’ll return projected stats using the reverse-engineered artifacts.</p>
 
-  async function getOverrides() {
-    try {
-      const r = await fetch("/api/minutes/overrides", { cache: "no-store" });
-      if (!r.ok) return { overrides: {} };
-      return await r.json();
-    } catch { return { overrides: {} }; }
-  }
+  {% if missing_artifacts %}
+    <div class="warn">
+      <b>⚠ Artifacts not found</b><br>
+      Train & upload <code>artifacts/</code> → redeploy
+    </div>
+  {% endif %}
 
-  async function applyOverridesToTeamTable() {
-    const data = await getOverrides();
-    const map = (data && data.overrides) || {};
-    if (!Object.keys(map).length) return;
+  <!-- SINGLE PLAYER -->
+  <h3>Single Player</h3>
 
-    const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  <div class="row">
+    <div>
+      <div class="labelrow">
+        <label>Player</label><span class="subtext">type to filter (e.g., <i>kaw</i>)</span>
+      </div>
+      <div class="stack">
+        <input id="playerSearch" placeholder="e.g. kaw" />
+        <select id="player"></select>
+      </div>
+    </div>
 
-    qsa("#teamTbl tbody tr").forEach(tr => {
-      const nameCell = tr.querySelector("td:first-child");
-      const minsInput = tr.querySelector("input[name='mins']");
-      if (!nameCell || !minsInput) return;
-      const key = norm(nameCell.textContent);
-      const ov = map[key];
-      if (ov && typeof ov.minutes === "number") {
-        minsInput.value = ov.minutes;
-      }
-    });
-  }
+    <div>
+      <div class="labelrow">
+        <label>Opponent</label><span class="subtext">type to filter (e.g., <i>okc</i>)</span>
+      </div>
+      <div class="stack">
+        <input id="opponentSearch" placeholder="e.g. okc" />
+        <select id="opponent"></select>
+      </div>
+    </div>
+  </div>
 
-  async function uploadCSV(file) {
-    const fd = new FormData();
-    fd.append("file", file);
-    const r = await fetch("/api/minutes/upload", { method: "POST", body: fd });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || "Upload failed");
-    status(`Applied ${j.count} minutes (updated ${j.updated_at})`);
-    await applyOverridesToTeamTable();
-  }
+  <label style="margin-top:14px">Minutes</label>
+  <input id="minutes" type="number" step="0.1" placeholder="e.g. 34" />
 
-  function wireUpload() {
-    const btn = qs("#btn-upload-minutes");
-    const input = qs("#minutes-file");
-    if (!btn || !input) return;
-    btn.addEventListener("click", () => input.click());
-    input.addEventListener("change", async (ev) => {
-      const f = ev.target.files && ev.target.files[0];
-      if (!f) return;
-      status("Uploading…");
-      try { await uploadCSV(f); }
-      catch (e) { status(`Error: ${e.message}`); }
-      finally { input.value = ""; }
-    });
-  }
+  <button id="projectBtn">Get Projections</button>
 
-  function wireRosterHook() {
-    const loadBtn = qs("#loadRosterBtn");
-    if (!loadBtn) return;
-    loadBtn.addEventListener("click", () => setTimeout(applyOverridesToTeamTable, 300));
-  }
+  <table id="result" style="display:none">
+    <thead>
+      <tr>
+        <th>Player</th><th>Opponent</th><th>Minutes</th>
+        <th>PTS</th><th>REB</th><th>AST</th><th>3PM</th>
+        <th>STL</th><th>BLK</th><th>TO</th><th>PRA</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  window.addEventListener("DOMContentLoaded", () => {
-    wireUpload();
-    wireRosterHook();
-    getOverrides().then(d => status(d.updated_at ? `Minutes loaded (${d.updated_at})` : "No minutes overrides"));
-  });
-})();
+  <hr />
+
+  <!-- TEAM SHEET -->
+  <h3>Team Sheet (Roster → Minutes → Project All)</h3>
+  <p class="muted">Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV</p>
+
+  <div class="row">
+    <div>
+      <label>Roster Team</label>
+      <select id="rosterTeam"></select>
+    </div>
+    <div>
+      <label>Opponent Team</label>
+      <select id="opponentTeam"></select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Default minutes</label>
+      <input id="defaultTeamMinutes" type="number" step="0.1" value="30" />
+    </div>
+    <div></div>
+  </div>
+
+  <div class="controls-inline">
+    <button id="loadRosterBtn">Load Roster</button>
+    <button id="projectRosterBtn">Project All</button>
+    <button id="downloadCsvBtn">Download CSV</button>
+  </div>
+
+  <table id="teamTbl" style="display:none">
+    <thead>
+      <tr>
+        <th>Player</th><th>Opponent</th><th>Minutes</th>
+        <th>PTS</th><th>REB</th><th>AST</th><th>3PM</th>
+        <th>STL</th><th>BLK</th><th>TO</th><th>PRA</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Minutes Upload -->
+  <hr />
+  <h3>Minutes Upload</h3>
+  <div class="controls-inline">
+    <input id="minutes-file" type="file" accept=".csv" style="display:none" />
+    <button id="btn-upload-minutes" type="button">Apply CSV Minutes</button>
+    <a id="link-minutes-template" href="/api/minutes/template.csv">Download minutes template</a>
+    <span id="minutes-upload-status" class="status">No minutes overrides</span>
+  </div>
+</div>
+
+<!-- keep your existing main JS -->
+<script src="/static/main.js"></script>
+<!-- minutes helper -->
+<script src="/static/minutes.js?v=2"></script>
+</body>
+</html>
