@@ -125,11 +125,13 @@
     <input id="minutes-file" type="file" accept=".csv" style="display:none" />
     <button id="btn-upload-minutes" type="button">Apply CSV Minutes</button>
     <a id="link-minutes-template" href="/api/minutes/template.csv">Download minutes template</a>
-    <span id="minutes-upload-status" class="status"></span>
+    <span id="minutes-upload-status" class="status">No minutes overrides</span>
   </div>
 </div>
 
-<!-- cache-bust -->
-<script src="/static/main.js?v=14"></script>
+<!-- your existing main JS stays exactly as you have it -->
+<script src="/static/main.js"></script>
+<!-- add the minutes helper (isolated) -->
+<script src="/static/minutes.js?v=1"></script>
 </body>
 </html>
