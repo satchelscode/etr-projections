@@ -1,0 +1,26 @@
+{
+  "stat": "Blocks",
+  "intercept": 0.006323374991406394,
+  "alpha": 1.0,
+  "n_rows": 2190,
+  "r2_in_sample": 0.9824765774518441,
+  "mae_in_sample": 0.03469089356982786,
+  "player_count": 427,
+  "opponent_count": 30,
+  "files_used": [
+    "NBA Full Stat Detail (10).csv",
+    "NBA Full Stat Detail (11).csv",
+    "NBA Full Stat Detail (12).csv",
+    "NBA Full Stat Detail (13).csv",
+    "NBA Full Stat Detail (14).csv",
+    "NBA Full Stat Detail (15).csv",
+    "NBA Full Stat Detail (2).csv",
+    "NBA Full Stat Detail (3).csv",
+    "NBA Full Stat Detail (5).csv",
+    "NBA Full Stat Detail (6).csv",
+    "NBA Full Stat Detail (7).csv",
+    "NBA Full Stat Detail (8).csv",
+    "NBA Full Stat Detail (9).csv",
+    "NBA Full Stat Detail.csv"
+  ]
+}
