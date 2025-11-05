@@ -1,12 +1,11 @@
 /* ====== ETR Projections — Main Client (DROP-IN) ======
-   - Populates selects (players/teams/opponents)
-   - Single-player projection flow
+   - Populates selects (players/teams/opponents) from:
+       1) /api/meta      ✅ preferred
+       2) /api/players + /api/teams + /api/opponents
+       3) /players_master.csv (CSV fallback)
+   - Single-player projection
    - Team Sheet load/project/download
    - Minutes CSV upload + apply to Team Sheet
-   - Robust fallbacks:
-       1) /api/meta
-       2) /api/players + /api/teams + /api/opponents
-       3) /players_master.csv  (CSV fallback)
    ----------------------------------------------------- */
 
 const qs  = (s, r = document) => r.querySelector(s);
@@ -15,7 +14,6 @@ const fmt1 = (x) => (x === null || x === undefined || Number.isNaN(+x) ? "" : (+
 
 /* -------------- CSV Parser (minimal) ---------------- */
 function parseCSV(text) {
-  // very simple CSV parser (no quoted commas)
   const lines = text.trim().split(/\r?\n/);
   if (!lines.length) return [];
   const headers = lines[0].split(",").map(h => h.trim());
@@ -34,7 +32,6 @@ async function readPlayersFromCSV() {
     if (!r.ok) return { players: [], teams: [], opponents: [] };
     const txt = await r.text();
     const rows = parseCSV(txt);
-    // Expected columns in your CSV (best-effort): Player, Team (or player, team)
     const players = rows
       .map(row => {
         const name = row.Player || row.player || row.Name || row.name || "";
@@ -62,7 +59,7 @@ const Minutes = {
       if (!r.ok) return;
       this.cache = await r.json();
       this.status(this.cache.updated_at ? `Minutes loaded (${this.cache.updated_at})` : "No minutes overrides");
-    } catch { /* noop */ }
+    } catch {}
   },
 
   async upload(file) {
@@ -121,16 +118,16 @@ const Minutes = {
 /* ---------------------- API ------------------------ */
 const API = {
   async getMeta() {
-    // 1) Try /api/meta
+    // 1) /api/meta
     try {
       const r = await fetch("/api/meta", { cache: "no-store" });
       if (r.ok) {
         const j = await r.json();
-        if (j?.players?.length) return j;
+        if (j?.players?.length || j?.teams?.length) return j;
       }
     } catch {}
 
-    // 2) Try granular endpoints
+    // 2) granular
     try {
       const [players, teams, opps] = await Promise.all([
         fetch("/api/players",   { cache: "no-store" }).then(r => r.ok ? r.json() : [] ).catch(() => []),
@@ -144,12 +141,11 @@ const API = {
       }
     } catch {}
 
-    // 3) CSV fallback
+    // 3) CSV
     return await readPlayersFromCSV();
   },
 
   async roster(team) {
-    // Try two patterns; else derive from CSV by filtering team
     const try1 = fetch(`/api/team/${encodeURIComponent(team)}/roster`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : null).catch(() => null);
     const try2 = fetch(`/api/roster?team=${encodeURIComponent(team)}`, { cache: "no-store" })
@@ -193,48 +189,43 @@ const App = {
   async init() {
     Minutes.attachUI();
     await Minutes.load();
-
     await this.loadMeta();
     this.wireSearchFilters();
     this.wireButtons();
+    console.log("[ETR] init complete");
   },
 
   async loadMeta() {
-    try {
-      this.meta = await API.getMeta();
+    this.meta = await API.getMeta();
 
-      const playerSel = qs("#player");
-      const playerSearch = qs("#playerSearch");
-      const oppSel = qs("#opponent");
-      const oppSearch = qs("#opponentSearch");
-      const rosterTeamSel = qs("#rosterTeam");
-      const opponentTeamSel = qs("#opponentTeam");
+    const playerSel = qs("#player");
+    const playerSearch = qs("#playerSearch");
+    const oppSel = qs("#opponent");
+    const oppSearch = qs("#opponentSearch");
+    const rosterTeamSel = qs("#rosterTeam");
+    const opponentTeamSel = qs("#opponentTeam");
 
-      const playerItems = (this.meta.players || []).map(p => ({
-        label: p.name || p.player || "",
-        value: p.name || p.player || ""
-      })).filter(x => x.label);
+    const playerItems = (this.meta.players || []).map(p => ({
+      label: p.name || p.player || "",
+      value: p.name || p.player || ""
+    })).filter(x => x.label);
 
-      const oppItems = (this.meta.opponents || []).map(t => ({ label: t, value: t }));
-      const teamItems = (this.meta.teams || []).map(t => ({ label: t, value: t }));
+    const oppItems = (this.meta.opponents || []).map(t => ({ label: t, value: t }));
+    const teamItems = (this.meta.teams || []).map(t => ({ label: t, value: t }));
 
-      this.fillSelect(playerSel, playerItems);
-      this.fillSelect(oppSel, oppItems);
-      this.fillSelect(rosterTeamSel, teamItems);
-      this.fillSelect(opponentTeamSel, oppItems.length ? oppItems : teamItems);
+    this.fillSelect(playerSel, playerItems);
+    this.fillSelect(oppSel, oppItems);
+    this.fillSelect(rosterTeamSel, teamItems);
+    this.fillSelect(opponentTeamSel, oppItems.length ? oppItems : teamItems);
 
-      const filterSelect = (sel, items, q) => {
-        const normq = (q || "").toLowerCase();
-        const filtered = items.filter(x => (x.label || "").toLowerCase().includes(normq));
-        this.fillSelect(sel, filtered);
-      };
+    const filterSelect = (sel, items, q) => {
+      const normq = (q || "").toLowerCase();
+      const filtered = items.filter(x => (x.label || "").toLowerCase().includes(normq));
+      this.fillSelect(sel, filtered);
+    };
 
-      playerSearch?.addEventListener("input", (e) => filterSelect(playerSel, playerItems, e.target.value));
-      oppSearch?.addEventListener("input", (e) => filterSelect(oppSel, oppItems.length ? oppItems : teamItems, e.target.value));
-    } catch (e) {
-      console.error("loadMeta failed:", e);
-      alert("Failed to load player/team lists.");
-    }
+    playerSearch?.addEventListener("input", (e) => filterSelect(playerSel, playerItems, e.target.value));
+    oppSearch?.addEventListener("input", (e) => filterSelect(oppSel, oppItems.length ? oppItems : teamItems, e.target.value));
   },
 
   fillSelect(selectEl, items) {
@@ -422,7 +413,5 @@ const App = {
 
 /* Boot */
 window.addEventListener("DOMContentLoaded", () => {
-  App.init().catch((e) => {
-    console.error("Init failed:", e);
-  });
+  App.init().catch((e) => console.error("Init failed:", e));
 });
