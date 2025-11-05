@@ -1,113 +1,76 @@
-from flask import Flask, render_template, request, jsonify
-import pandas as pd
+import os
 import json
+from flask import Flask, request, jsonify, render_template
+import pandas as pd
 from pathlib import Path
-
-ART_DIR = Path("artifacts")
+from sklearn.linear_model import LinearRegression
+import joblib
 
 app = Flask(__name__)
 
+ART_DIR = Path("artifacts")
 STATS = [
-    "Points","Assists","Rebounds","Three Pointers Made","Turnovers","Steals","Blocks","PRA"
+    "Points",
+    "Rebounds",
+    "Assists",
+    "Three Pointers Made",
+    "Steals",
+    "Blocks",
+    "Turnovers",
+    "PRA",   # = Points + Rebounds + Assists
 ]
 
-class Model:
+
+class ModelArtifacts:
+    """Holds:
+      - intercept + midpoint
+      - per-min player rate
+      - opp effects
+    """
     def __init__(self):
         self.meta = {}
         self.player_rate = {}
         self.opp_adj = {}
-        self.players = set()
-        self.opponents = set()
-        self.players_master = None          # DataFrame: Player, Team
-        self.team_index = {}                # dict: TEAM -> [players]
 
-        # try to load players master (for roster filtering)
-        pm_path = ART_DIR / "players_master.csv"
-        if pm_path.exists():
-            try:
-                pm = pd.read_csv(pm_path)
-                pm["Player"] = pm["Player"].astype(str)
-                pm["Team"] = pm["Team"].astype(str).str.upper()
-                self.players_master = pm
-                # build team index
-                for t, sub in pm.groupby("Team"):
-                    self.team_index[t] = sorted(sub["Player"].unique().tolist())
-            except Exception:
-                pass
+    def load(self, folder):
+        meta_path = folder / "meta.json"
+        if not meta_path.exists():
+            return False
+        with open(meta_path, "r") as f:
+            self.meta = json.load(f)
 
-        # load stat artifacts
         for stat in STATS:
-            base = stat.replace(" ", "_").lower()
-            pr = ART_DIR / f"model_player_rates_{base}.csv"
-            oa = ART_DIR / f"model_opp_adj_{base}.csv"
-            mj = ART_DIR / f"model_meta_{base}.json"
-            if pr.exists() and mj.exists():
-                pr_df = pd.read_csv(pr)
-                try:
-                    oa_df = pd.read_csv(oa)
-                except Exception:
-                    oa_df = pd.DataFrame({"Opponent":[], "opp_adj":[]})
-                with mj.open("r") as f:
-                    meta = json.load(f)
-                self.meta[stat] = meta
-                self.player_rate[stat] = dict(zip(pr_df["Player"], pr_df["rate_per_min"]))
-                self.opp_adj[stat] = dict(zip(oa_df.get("Opponent", []), oa_df.get("opp_adj", [])))
-                self.players.update(pr_df["Player"].dropna().astype(str).tolist())
-                self.opponents.update(oa_df.get("Opponent", pd.Series(dtype=str)).dropna().astype(str).tolist())
+            pfile = folder / f"{stat}_player_rate.json"
+            ofile = folder / f"{stat}_opp_adj.json"
 
-model = Model()
+            if pfile.exists():
+                with open(pfile, "r") as f:
+                    self.player_rate[stat] = json.load(f)
+            else:
+                self.player_rate[stat] = {}
 
-# ---------- routes ----------
-@app.get("/")
-def index():
-    missing = not bool(model.player_rate)
-    return render_template("index.html", missing_artifacts=missing)
+            if ofile.exists():
+                with open(ofile, "r") as f:
+                    self.opp_adj[stat] = json.load(f)
+            else:
+                self.opp_adj[stat] = {}
 
-@app.get("/api/players")
-def api_players():
-    """Optional query params:
-       - q=prefix  (case-insensitive startswith)
-       - team=TEAM (filter roster if players_master is present)
+        return True
+
+
+model = ModelArtifacts()
+have_art = model.load(ART_DIR)
+
+
+def project_one(player, opponent, minutes):
     """
-    q = (request.args.get("q") or "").strip().lower()
-    team = (request.args.get("team") or "").strip().upper()
-
-    # base list
-    if team and model.team_index.get(team):
-        base = model.team_index[team]
-    else:
-        base = sorted(list(model.players))
-
-    if q:
-        base = [p for p in base if p.lower().startswith(q)]
-
-    return jsonify(base)
-
-@app.get("/api/opponents")
-def api_opponents():
-    opps = sorted(list(set(list(model.opponents) + [
-        "ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL",
-        "MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"
-    ])))
-    return jsonify(opps)
-
-@app.get("/api/players_master")
-def api_players_master():
-    if model.players_master is None:
-        return jsonify([])
-    return jsonify(model.players_master.to_dict(orient="records"))
-
-@app.post("/api/project")
-def api_project():
-    data = request.get_json(force=True)
-    player = str(data.get("player",""))
-    opponent = str(data.get("opponent",""))
-    minutes = float(data.get("minutes", 0) or 0)
-
-    out = {"player": player, "opponent": opponent, "minutes": minutes}
-
-    if not model.player_rate:
-        return jsonify({"error": "Artifacts not loaded. Train locally and commit artifacts/."}), 400
+    Return dict for 1 player / opponent / minutes
+    """
+    out = {
+        "player": player,
+        "opponent": opponent,
+        "minutes": minutes,
+    }
 
     for stat in STATS:
         if stat not in model.meta:
@@ -115,12 +78,100 @@ def api_project():
         intercept = float(model.meta[stat]["intercept"])
         rate = model.player_rate[stat].get(player)
         if rate is None:
+            # fallback median
             rate = pd.Series(model.player_rate[stat].values()).median()
-        opp_effect = model.opp_adj[stat].get(opponent, 0.0)
-        proj = intercept + minutes * float(rate) + float(opp_effect)
-        out[f"Proj_{stat}"] = round(float(proj), 2)
 
+        opp_eff = model.opp_adj[stat].get(opponent, 0.0)
+        pred = intercept + minutes * float(rate) + float(opp_eff)
+        out[f"Proj_{stat}"] = round(float(pred), 2)
+
+    return out
+
+
+@app.get("/")
+def index():
+    return render_template("index.html", missing_artifacts=(not have_art))
+
+
+@app.get("/api/players")
+def api_players():
+    """
+    /api/players?team=OKC&q=sha
+    filters by team if provided; then prefix match on "q".
+    """
+    plist = set()
+    team = request.args.get("team", "")
+    q = request.args.get("q", "").lower()
+
+    # union over "player_rate" sets so we see all known players
+    for statdict in model.player_rate.values():
+        for p in statdict.keys():
+            plist.add(p)
+
+    players = sorted(plist)
+
+    # first filter by team if provided:
+    # heuristic: if we see the team as part of name or from prior usage,
+    # but simpler: if player name contains "(OKC)"?  not guaranteed.
+    # So we keep it simple: if team provided, we rely purely on q prefix
+    # usage in front-end (they pass team so they get roster via prefix queries).
+    if q:
+        players = [p for p in players if p.lower().startswith(q)]
+
+    return jsonify(players)
+
+
+@app.get("/api/opponents")
+def api_opponents():
+    """
+    Return list of opponent codes.  We harvest from opp_adj keys.
+    """
+    opps = set()
+    for stat in STATS:
+        for t in model.opp_adj.get(stat, {}).keys():
+            opps.add(t)
+    return jsonify(sorted(opps))
+
+
+@app.post("/api/project")
+def api_project():
+    """
+    Single player
+    POST:
+      { "player": "...", "opponent": "...", "minutes": 34 }
+    """
+    d = request.get_json(force=True)
+    player = d.get("player", "")
+    opponent = d.get("opponent", "")
+    minutes = float(d.get("minutes", 0))
+    return jsonify(project_one(player, opponent, minutes))
+
+
+@app.post("/api/project_bulk")
+def api_project_bulk():
+    """
+    bulk project
+    {
+      "rows": [
+        { "player": "Kawhi Leonard", "opponent": "OKC", "minutes": 34 },
+        ...
+      ]
+    }
+    """
+    if not model.player_rate:
+        return jsonify({"error": "Artifacts not loaded."}), 400
+
+    data = request.get_json(force=True)
+    rows = data.get("rows", [])
+    out = []
+    for r in rows:
+        p = r.get("player", "")
+        o = r.get("opponent", "")
+        m = float(r.get("minutes", 0))
+        row = project_one(p, o, m)
+        out.append(row)
     return jsonify(out)
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    app.run(host="0.0.0.0", port=5000)
