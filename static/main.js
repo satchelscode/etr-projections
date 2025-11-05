@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   fillSelect(selRosterTeam, master.teams);
   fillSelect(selOpponentTeam, master.teams);
 
-  // type-to-filter
+  // type-to-filter for selects
   attachTypeFilter(inpPlayerSearch, selPlayer);
   attachTypeFilter(inpOppSearch, selOpp);
 
