@@ -10,7 +10,7 @@ from daily_api import daily_bp
 ART_DIR = Path("artifacts")
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB uploads
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB uploads
 
 # Register blueprints (once, after app exists)
 app.register_blueprint(minutes_bp)
@@ -27,11 +27,11 @@ def stat_to_base(s: str) -> str:
 def load_minutes_overrides() -> dict:
     store = ART_DIR / "minutes_overrides.json"
     if store.exists():
-        try:
-            data = json.loads(store.read_text(encoding="utf-8"))
-            return data.get("overrides", {}) or {}
-        except Exception:
-            return {}
+      try:
+        data = json.loads(store.read_text(encoding="utf-8"))
+        return data.get("overrides", {}) or {}
+      except Exception:
+        return {}
     return {}
 
 class Model:
@@ -104,7 +104,6 @@ def project_row(player: str, opponent: str, minutes: float) -> dict:
 @app.get("/")
 def index():
     missing = not bool(model.player_rate)
-    # nav supports tabs in index.html
     return render_template("index.html", missing_artifacts=missing)
 
 @app.get("/api/players")
@@ -169,3 +168,4 @@ def api_team_roster(team):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5005, debug=True)
+
