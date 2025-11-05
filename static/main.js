@@ -1,12 +1,10 @@
-/* ====== ETR Projections — Main Client (DROP-IN) ======
-   - Populates selects (players/teams/opponents) from:
-       1) /api/meta      ✅ preferred
-       2) /api/players + /api/teams + /api/opponents
-       3) /players_master.csv (CSV fallback)
+/* ====== ETR Projections — Main Client (v14) ======
+   - Populates selects (players/teams/opponents)
    - Single-player projection
    - Team Sheet load/project/download
    - Minutes CSV upload + apply to Team Sheet
-   ----------------------------------------------------- */
+   - Works with app.py that returns Proj_* fields and /api/project_bulk
+   -------------------------------------------------- */
 
 const qs  = (s, r = document) => r.querySelector(s);
 const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -118,7 +116,7 @@ const Minutes = {
 /* ---------------------- API ------------------------ */
 const API = {
   async getMeta() {
-    // 1) /api/meta
+    // Preferred: /api/meta
     try {
       const r = await fetch("/api/meta", { cache: "no-store" });
       if (r.ok) {
@@ -127,7 +125,7 @@ const API = {
       }
     } catch {}
 
-    // 2) granular
+    // Fallbacks
     try {
       const [players, teams, opps] = await Promise.all([
         fetch("/api/players",   { cache: "no-store" }).then(r => r.ok ? r.json() : [] ).catch(() => []),
@@ -141,7 +139,6 @@ const API = {
       }
     } catch {}
 
-    // 3) CSV
     return await readPlayersFromCSV();
   },
 
@@ -153,7 +150,6 @@ const API = {
     let res = (await try1) || (await try2);
     if (Array.isArray(res)) return res;
 
-    // CSV derive
     const meta = await readPlayersFromCSV();
     const players = meta.players.filter(p => (p.team || "").toLowerCase() === String(team || "").toLowerCase());
     return players.map(p => ({ player: p.name, opponent: "", minutes: "" }));
@@ -170,7 +166,8 @@ const API = {
   },
 
   async projectBulk(rows) {
-    const r = await fetch("/api/project/bulk", {
+    // NOTE: backend uses underscore: /api/project_bulk
+    const r = await fetch("/api/project_bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rows })
@@ -192,7 +189,6 @@ const App = {
     await this.loadMeta();
     this.wireSearchFilters();
     this.wireButtons();
-    console.log("[ETR] init complete");
   },
 
   async loadMeta() {
@@ -324,8 +320,12 @@ const App = {
     });
   },
 
-  wireSearchFilters() {
-    // handled in loadMeta
+  // Map either Proj_* or short keys to numbers
+  readStat(obj, longKey, shortKey) {
+    if (obj == null) return "";
+    if (longKey in obj) return fmt1(obj[longKey]);
+    if (shortKey in obj) return fmt1(obj[shortKey]);
+    return "";
   },
 
   renderSingle(player, opponent, minutes, proj) {
@@ -335,19 +335,18 @@ const App = {
     tbl.style.display = "table";
     tb.innerHTML = "";
     const row = document.createElement("tr");
-    const safe = (k) => fmt1(proj?.[k]);
     row.innerHTML = `
       <td>${player}</td>
       <td>${opponent}</td>
       <td>${minutes}</td>
-      <td>${safe("pts")}</td>
-      <td>${safe("reb")}</td>
-      <td>${safe("ast")}</td>
-      <td>${safe("3pm")}</td>
-      <td>${safe("stl")}</td>
-      <td>${safe("blk")}</td>
-      <td>${safe("to")}</td>
-      <td>${safe("pra")}</td>
+      <td>${this.readStat(proj, "Proj_Points", "pts")}</td>
+      <td>${this.readStat(proj, "Proj_Rebounds", "reb")}</td>
+      <td>${this.readStat(proj, "Proj_Assists", "ast")}</td>
+      <td>${this.readStat(proj, "Proj_Three Pointers Made", "3pm")}</td>
+      <td>${this.readStat(proj, "Proj_Steals", "stl")}</td>
+      <td>${this.readStat(proj, "Proj_Blocks", "blk")}</td>
+      <td>${this.readStat(proj, "Proj_Turnovers", "to")}</td>
+      <td>${this.readStat(proj, "Proj_PRA", "pra")}</td>
     `;
     tb.appendChild(row);
   },
@@ -389,15 +388,19 @@ const App = {
       const name = tr.dataset.player;
       const r = byPlayer.get(name);
       if (!r) return;
-      const set = (k, v) => { const cell = qs(`td[data-k='${k}']`, tr); if (cell) cell.textContent = fmt1(v); };
-      set("pts", r.pts);
-      set("reb", r.reb);
-      set("ast", r.ast);
-      set("3pm", r["3pm"]);
-      set("stl", r.stl);
-      set("blk", r.blk);
-      set("to",  r.to);
-      set("pra", r.pra);
+      const set = (k, longKey, shortKey) => {
+        const cell = qs(`td[data-k='${k}']`, tr);
+        if (!cell) return;
+        cell.textContent = this.readStat(r, longKey, shortKey);
+      };
+      set("pts", "Proj_Points", "pts");
+      set("reb", "Proj_Rebounds", "reb");
+      set("ast", "Proj_Assists", "ast");
+      set("3pm", "Proj_Three Pointers Made", "3pm");
+      set("stl", "Proj_Steals", "stl");
+      set("blk", "Proj_Blocks", "blk");
+      set("to",  "Proj_Turnovers", "to");
+      set("pra", "Proj_PRA", "pra");
     });
   },
 
