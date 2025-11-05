@@ -13,22 +13,41 @@ function fillSelect(sel, items){
   });
 }
 
-async function init(){
-  // cache originals for filter resets
-  const allOpponents = await fetchJSON('/api/opponents');
+function toCSV(rows){
+  if(!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  const csv = [headers.join(",")].concat(
+    rows.map(r => headers.map(h => (r[h] ?? "")).join(","))
+  );
+  return csv.join("\n");
+}
 
+async function init(){
+  // --- DOM refs
   const selPlayer = document.getElementById('player');
   const selOpp = document.getElementById('opponent');
   const inpPSearch = document.getElementById('playerSearch');
   const inpOSearch = document.getElementById('opponentSearch');
+  const minutesInput = document.getElementById('minutes');
 
-  // initial load: all players (server will return full list)
+  const teamForRoster = document.getElementById('teamForRoster');
+  const defaultTeamMinutes = document.getElementById('defaultTeamMinutes');
+  const loadRosterBtn = document.getElementById('loadRosterBtn');
+  const projectRosterBtn = document.getElementById('projectRosterBtn');
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+  const teamTbl = document.getElementById('teamTbl');
+  const teamTBody = teamTbl.querySelector('tbody');
+
+  // --- load initial options
+  const allOpponents = await fetchJSON('/api/opponents');
   let currentTeam = "";
   let allPlayers = await fetchJSON('/api/players');
-  fillSelect(selPlayer, allPlayers);
-  fillSelect(selOpp, allOpponents);
 
-  // ---- opponent filter / roster mode ----
+  fillSelect(selOpp, allOpponents);
+  fillSelect(teamForRoster, allOpponents);
+  fillSelect(selPlayer, allPlayers);
+
+  // ---- opponent filter / roster mode for single-player ----
   async function reloadPlayersForTeam(teamCode, qPrefix=""){
     const params = new URLSearchParams();
     if(teamCode) params.set("team", teamCode);
@@ -60,18 +79,16 @@ async function init(){
       const q = inpOSearch.value.trim().toLowerCase();
       const filtered = allOpponents.filter(t => t.toLowerCase().startsWith(q));
       fillSelect(selOpp, filtered.length ? filtered : allOpponents);
-      // keep currentTeam in sync if user typed a new team
       currentTeam = selOpp.value || "";
-      // refresh players for that team
       reloadPlayersForTeam(currentTeam, inpPSearch.value.trim().toLowerCase());
     }, 120);
   });
 
-  // ---- projection button ----
+  // ---- single player project ----
   document.getElementById('projectBtn').addEventListener('click', async ()=>{
     const player = selPlayer.value;
     const opponent = selOpp.value;
-    const minutes = parseFloat(document.getElementById('minutes').value || '0');
+    const minutes = parseFloat(minutesInput.value || '0');
     if(!player || !opponent || !minutes){
       alert('Pick player, opponent, and enter minutes.');
       return;
@@ -94,9 +111,100 @@ async function init(){
     tb.appendChild(tr);
     tbl.style.display='table';
   });
+
+  // ===== TEAM SHEET =====
+
+  async function loadRoster(team){
+    const roster = await fetchJSON('/api/players?team='+encodeURIComponent(team));
+    teamTBody.innerHTML = '';
+    roster.forEach(p=>{
+      const tr = document.createElement('tr');
+
+      const tdP = document.createElement('td'); tdP.textContent = p;
+      const tdO = document.createElement('td'); tdO.textContent = team;
+
+      const tdM = document.createElement('td');
+      const mInput = document.createElement('input');
+      mInput.type = 'number'; mInput.step = '0.1';
+      mInput.value = parseFloat(defaultTeamMinutes.value || '30');
+      mInput.style.width = '80px';
+      tdM.appendChild(mInput);
+
+      // placeholder cells for projections
+      const makeCell = () => document.createElement('td');
+      const tdPTS = makeCell(), tdREB = makeCell(), tdAST = makeCell(), td3PM = makeCell(),
+            tdSTL = makeCell(), tdBLK = makeCell(), tdTO = makeCell(), tdPRA = makeCell();
+
+      tr.append(tdP, tdO, tdM, tdPTS, tdREB, tdAST, td3PM, tdSTL, tdBLK, tdTO, tdPRA);
+      teamTBody.appendChild(tr);
+    });
+    teamTbl.style.display = 'table';
+  }
+
+  loadRosterBtn.addEventListener('click', async ()=>{
+    const t = teamForRoster.value;
+    if(!t){ alert('Pick a team'); return; }
+    await loadRoster(t);
+  });
+
+  projectRosterBtn.addEventListener('click', async ()=>{
+    const team = teamForRoster.value;
+    const rows = [];
+    [...teamTBody.querySelectorAll('tr')].forEach(tr=>{
+      const player = tr.children[0].textContent;
+      const minutes = parseFloat(tr.children[2].querySelector('input').value || '0');
+      if(minutes > 0){
+        rows.push({player, opponent: team, minutes});
+      }
+    });
+    if(!rows.length){ alert('Enter minutes for at least one player'); return; }
+
+    const out = await fetchJSON('/api/project_bulk', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rows})
+    });
+
+    // write results into table cells
+    const idx = {}; out.forEach(r => { idx[r.player] = r; });
+    [...teamTBody.querySelectorAll('tr')].forEach(tr=>{
+      const p = tr.children[0].textContent;
+      const r = idx[p]; if(!r) return;
+      const cells = [
+        r.Proj_Points, r.Proj_Rebounds, r.Proj_Assists,
+        r['Proj_Three Pointers Made'], r.Proj_Steals, r.Proj_Blocks,
+        r.Proj_Turnovers, r.Proj_PRA
+      ];
+      for(let i=0;i<cells.length;i++){
+        tr.children[3+i].textContent = (cells[i]===undefined?'—':cells[i]);
+      }
+    });
+
+    // store for CSV
+    projectRosterBtn.dataset.lastCsv = JSON.stringify(out);
+  });
+
+  downloadCsvBtn.addEventListener('click', ()=>{
+    const raw = projectRosterBtn.dataset.lastCsv;
+    if(!raw){ alert('Run "Project All" first.'); return; }
+    const rows = JSON.parse(raw);
+    const keep = rows.map(r => ({
+      Player: r.player, Opponent: r.opponent, Minutes: r.minutes,
+      PTS: r.Proj_Points, REB: r.Proj_Rebounds, AST: r.Proj_Assists,
+      "3PM": r['Proj_Three Pointers Made'], STL: r.Proj_Steals,
+      BLK: r.Proj_Blocks, TO: r.Proj_Turnovers, PRA: r.Proj_PRA
+    }));
+    const csv = toCSV(keep);
+    const blob = new Blob([csv], {type: "text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `etr_team_projections_${teamForRoster.value}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
 }
 
 init().catch(err=>{
   alert('Init failed: '+err.message);
   console.error(err);
 });
+
