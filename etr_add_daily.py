@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 """
 Append a daily ETR projections CSV into data/master.parquet and data/raw/YYYY-MM-DD.csv.
+Accepts Minutes OR Min.
 
 Usage:
   python etr_add_daily.py --csv /path/to/todays.csv --date 2025-11-05
-
-Requirements:
-  - CSV columns (case-insensitive ok): Player, Team, Opp, Minutes, PTS, REB, AST, 3PM, STL, BLK, TO, PRA
-  - Minutes > 0 rows kept; others dropped.
 """
 
 import argparse
 from pathlib import Path
 import pandas as pd
-import numpy as np
 
 REPO = Path(__file__).resolve().parent
 DATA = REPO / "data"
@@ -23,23 +19,38 @@ RAW.mkdir(parents=True, exist_ok=True)
 
 NEEDED = ["Player","Team","Opp","Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA"]
 
-def normalize_cols(df: pd.DataFrame) -> pd.DataFrame:
-    m = {c.lower(): c for c in df.columns}
-    out = {}
-    for need in NEEDED:
-        key = need.lower()
-        found = None
+def resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
+    want = target.lower()
+    for c in df.columns:
+        if c.strip().lower() == want:
+            return c
+    for a in aliases:
+        a_norm = a.lower()
         for c in df.columns:
-            if c.strip().lower() == key:
-                found = c
-                break
-        if found is None:
-            raise ValueError(f"Missing required column: {need}")
-        out[need] = df[found]
-    g = pd.DataFrame(out)
+            if c.strip().lower() == a_norm:
+                return c
+    raise ValueError(f"Missing required column: {target}")
+
+def normalize_cols(df: pd.DataFrame) -> pd.DataFrame:
+    minutes_col = resolve_col(df, "Minutes", ["Min", "mins", "MINS"])
+    colmap = {
+        "Player": resolve_col(df, "Player", []),
+        "Team":   resolve_col(df, "Team", []),
+        "Opp":    resolve_col(df, "Opp", ["Opponent"]),
+        "Minutes": minutes_col,
+        "PTS": resolve_col(df, "PTS", []),
+        "REB": resolve_col(df, "REB", []),
+        "AST": resolve_col(df, "AST", []),
+        "3PM": resolve_col(df, "3PM", ["3pt", "3p", "threes", "three_pointers_made"]),
+        "STL": resolve_col(df, "STL", []),
+        "BLK": resolve_col(df, "BLK", []),
+        "TO":  resolve_col(df, "TO",  ["TOV","Turnovers"]),
+        "PRA": resolve_col(df, "PRA", []),
+    }
+    g = pd.DataFrame({k: df[v] for k, v in colmap.items()})
     g["Player"] = g["Player"].astype(str).str.strip()
-    g["Team"]   = g["Team"].astype(str).str.strip().str.upper()
-    g["Opp"]    = g["Opp"].astype(str).str.strip().str.upper()
+    g["Team"]   = g["Team"].astype(str).str.upper().str.strip()
+    g["Opp"]    = g["Opp"].astype(str).str.upper().str.strip()
     for k in ["Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA"]:
         g[k] = pd.to_numeric(g[k], errors="coerce")
     g = g[(g["Minutes"] > 0) & g["Player"].ne("")]
@@ -55,11 +66,9 @@ def main():
     df = normalize_cols(df)
     df["Date"] = pd.to_datetime(args.date).normalize()
 
-    # Save raw copy
     out_raw = RAW / f"{args.date}.csv"
     df.to_csv(out_raw, index=False)
 
-    # Append/update master.parquet (dedupe on Date+Player+Opp)
     if MASTER.exists():
         m = pd.read_parquet(MASTER)
         m = pd.concat([m, df], ignore_index=True)
