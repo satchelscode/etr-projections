@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>No‑Juice Projections</title>
+  <style>
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px;}
+    .card{max-width: 980px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 12px;}
+    label{display:block; font-weight:600; margin-top:12px;}
+    select,input{width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:6px;}
+    button{margin-top:16px; padding:10px 16px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer}
+    table{width:100%; border-collapse:collapse; margin-top:16px}
+    th,td{padding:8px; border-bottom:1px solid #eee; text-align:left}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
+    .warn{padding:12px; background:#fff4e5; border:1px solid #ffd19a; border-radius:8px; margin:12px 0;}
+    .muted{color:#777}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>No‑Juice — Minutes → Projections</h2>
+    <p class="muted">Pick a player, opponent, and enter your minutes. We’ll return projected stats using the reverse‑engineered artifacts.</p>
+
+    {% if missing_artifacts %}
+      <div class="warn">
+        <b>Artifacts not found.</b> Train locally with your daily CSVs, commit the <code>artifacts/</code> folder, and redeploy.<br>
+        Steps: <code>python train_artifacts.py</code> → commit <code>artifacts/</code> → push.
+      </div>
+    {% endif %}
+
+    <div class="row">
+      <div>
+        <label for="player">Player</label>
+        <select id="player"></select>
+      </div>
+      <div>
+        <label for="opponent">Opponent</label>
+        <select id="opponent"></select>
+      </div>
+    </div>
+
+    <label for="minutes">Minutes</label>
+    <input id="minutes" type="number" step="0.1" placeholder="e.g. 34" />
+
+    <button id="projectBtn">Get Projections</button>
+
+    <table id="result" style="display:none">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Opponent</th>
+          <th>Minutes</th>
+          <th>PTS</th>
+          <th>REB</th>
+          <th>AST</th>
+          <th>3PM</th>
+          <th>STL</th>
+          <th>BLK</th>
+          <th>TO</th>
+          <th>PRA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>
