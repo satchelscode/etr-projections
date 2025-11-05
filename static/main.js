@@ -33,6 +33,79 @@ function downloadCsv(name, text) {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------- CSV parsing helpers ----------
+function parseCSV(text) {
+  // Small CSV parser supporting quoted fields
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let inQuotes = false;
+
+  function pushCell() {
+    row.push(cur);
+    cur = "";
+  }
+  function pushRow() {
+    rows.push(row);
+    row = [];
+  }
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += c;
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        pushCell();
+      } else if (c === "\n" || c === "\r") {
+        // handle \r\n
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        pushCell();
+        pushRow();
+      } else {
+        cur += c;
+      }
+    }
+  }
+  // last cell/row
+  pushCell();
+  if (row.length > 1 || (row.length === 1 && row[0] !== "")) pushRow();
+
+  if (!rows.length) return { headers: [], data: [] };
+  const headers = rows[0].map(h => h.trim());
+  const data = rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, idx) => (obj[h] = (r[idx] ?? "").toString().trim()));
+    return obj;
+  });
+  return { headers, data };
+}
+
+function normalizeName(s) {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[^a-z0-9 ]/g, "")      // remove punctuation
+    .replace(/\s+/g, " ")            // collapse spaces
+    .trim();
+}
+
+// Global minutes map from uploaded CSV: key = normalized player name
+// value = { minutes: number, opp?: string }
+const csvMinutesMap = new Map();
+
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
@@ -57,34 +130,38 @@ async function init() {
     const tblTeam = document.getElementById("teamTbl");
     const tbodyTeam = tblTeam?.querySelector("tbody");
 
+    // NEW: CSV elements
+    const minsCsvInput = document.getElementById("minsCsv");
+    const applyCsvBtn = document.getElementById("applyCsvMinutesBtn");
+    const downloadTemplateBtn = document.getElementById("downloadMinutesTemplateBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+
     // Load base data
     const opponents = await fetchJSON("/api/opponents");
 
-    // Always fill these three immediately so UI is never empty
+    // Seed selects immediately so UI isn't empty
     fillSelect(selOpp, opponents);
     fillSelect(selOpponentTeam, opponents);
-    fillSelect(selRosterTeam, opponents); // <-- NEW: seed rosterTeam with NBA codes right away
+    fillSelect(selRosterTeam, opponents);
 
     // Players for single-player select
     const allPlayers = await fetchJSON("/api/players");
     fillSelect(selPlayer, allPlayers);
 
-    // Try to load players_master for real rosters (optional)
+    // Try players_master for accurate rosters
     try {
       const playersMaster = await fetchJSON("/api/players_master");
       const teamSet = [...new Set(
         playersMaster.map(r => String(r.Team || "").toUpperCase()).filter(Boolean)
       )].sort();
-
-      // If players_master is present and non-empty, override rosterTeam with precise list
       if (teamSet.length) {
         fillSelect(selRosterTeam, teamSet);
       }
     } catch (_) {
-      // ignore — we already seeded rosterTeam with opponents list
+      // ignore; we already have seeded with opponents list
     }
 
-    // Single-player filtering
+    // ---------- Single-player filtering ----------
     inpOsearch?.addEventListener("input", async (ev) => {
       const q = ev.target.value.trim().toLowerCase();
       const filtered = opponents.filter(t => t.toLowerCase().startsWith(q));
@@ -99,7 +176,7 @@ async function init() {
       fillSelect(selPlayer, arr);
     });
 
-    // Single-player projections
+    // ---------- Single-player projections ----------
     btnProject?.addEventListener("click", async () => {
       const player = selPlayer?.value || "";
       const opponent = selOpp?.value || "";
@@ -130,7 +207,7 @@ async function init() {
       tblSingle.style.display = "";
     });
 
-    // Helper: get roster list for given team
+    // ---------- Team Sheet helpers ----------
     async function getRoster(team) {
       try {
         const pm = await fetchJSON("/api/players_master");
@@ -141,14 +218,41 @@ async function init() {
           .sort();
         if (roster.length) return roster;
       } catch (_) {
-        // fall through to backend filter
+        // fallback when master missing
       }
-      // fallback: ask backend to filter
       const arr = await fetchJSON("/api/players?team=" + encodeURIComponent(team));
       return arr;
     }
 
-    // Load roster button
+    function applyCsvMinutesToTable() {
+      if (!tbodyTeam) return;
+      let applied = 0;
+      [...tbodyTeam.querySelectorAll("tr")].forEach(tr => {
+        const tds = tr.querySelectorAll("td");
+        if (tds.length < 3) return;
+        const player = tds[0].textContent || "";
+        const key = normalizeName(player);
+        if (csvMinutesMap.has(key)) {
+          const info = csvMinutesMap.get(key);
+          const minInput = tds[2].querySelector("input");
+          if (minInput && Number.isFinite(info.minutes)) {
+            minInput.value = String(info.minutes);
+            applied++;
+          }
+          // Optional: If CSV provided Opponent, set it on the row
+          if (info.opp && /^[A-Z]{2,4}$/.test(info.opp)) {
+            tds[1].textContent = info.opp;
+          }
+        }
+      });
+      if (uploadStatus) {
+        uploadStatus.textContent = applied
+          ? `Applied minutes to ${applied} players`
+          : `No matching players found in current roster`;
+      }
+    }
+
+    // ---------- Load roster button ----------
     btnLoadRoster?.addEventListener("click", async () => {
       const rosterTeam = selRosterTeam?.value || "";
       if (!rosterTeam) return;
@@ -181,9 +285,12 @@ async function init() {
       });
 
       tblTeam.style.display = "";
+
+      // If CSV was uploaded earlier, apply those minutes now
+      if (csvMinutesMap.size) applyCsvMinutesToTable();
     });
 
-    // Project all
+    // ---------- Project all ----------
     btnProjectRoster?.addEventListener("click", async () => {
       if (!tbodyTeam) return;
       const oppTeam = selOpponentTeam?.value || "";
@@ -193,7 +300,8 @@ async function init() {
         if (tds.length < 3) return;
         const player = tds[0].textContent;
         const minutes = parseFloat(tds[2].querySelector("input")?.value || 0);
-        rows.push({ player, opponent: oppTeam, minutes });
+        const oppCell = tds[1].textContent || oppTeam;
+        rows.push({ player, opponent: oppCell, minutes });
       });
       if (!rows.length) return;
 
@@ -219,7 +327,7 @@ async function init() {
       });
     });
 
-    // Download CSV
+    // ---------- Download Team CSV ----------
     btnDownloadCsv?.addEventListener("click", () => {
       if (!tbodyTeam) return;
       const rows = [];
@@ -243,8 +351,85 @@ async function init() {
       downloadCsv("team_projections.csv", toCSV(rows));
     });
 
+    // ---------- NEW: Upload CSV + apply minutes ----------
+    minsCsvInput?.addEventListener("change", async (ev) => {
+      uploadStatus.textContent = "";
+      const f = ev.target.files?.[0];
+      if (!f) return;
+      const text = await f.text();
+      const { headers, data } = parseCSV(text);
+      if (!data.length) {
+        uploadStatus.textContent = "No rows found in CSV";
+        return;
+      }
+
+      // Resolve header names
+      const byLower = Object.fromEntries(headers.map(h => [h.toLowerCase(), h]));
+      const playerH = byLower["player"] || byLower["name"] || byLower["player_name"];
+      const minH = byLower["minutes"] || byLower["mins"] || byLower["min"];
+      const oppH = byLower["opponent"] || byLower["opp"] || byLower["team"] || byLower["opp_team"];
+
+      if (!playerH || !minH) {
+        uploadStatus.textContent = "CSV must include Player and Minutes columns";
+        return;
+      }
+
+      csvMinutesMap.clear();
+      let loaded = 0;
+
+      data.forEach(r => {
+        const pname = (r[playerH] || "").toString().trim();
+        const n = normalizeName(pname);
+        if (!n) return;
+        const m = parseFloat(r[minH]);
+        if (!Number.isFinite(m)) return;
+
+        const info = { minutes: m };
+        if (oppH) {
+          const oppCode = (r[oppH] || "").toString().trim().toUpperCase();
+          if (/^[A-Z]{2,4}$/.test(oppCode)) info.opp = oppCode;
+        }
+        csvMinutesMap.set(n, info);
+        loaded++;
+      });
+
+      uploadStatus.textContent = `Loaded minutes for ${loaded} players`;
+      // If a roster is already visible, apply immediately
+      applyCsvMinutesToTable();
+    });
+
+    applyCsvBtn?.addEventListener("click", () => {
+      if (!csvMinutesMap.size) {
+        uploadStatus.textContent = "Upload a CSV first";
+        return;
+      }
+      applyCsvMinutesToTable();
+    });
+
+    // ---------- NEW: Download minutes template ----------
+    downloadTemplateBtn?.addEventListener("click", () => {
+      let rows = [];
+      if (tbodyTeam && tbodyTeam.querySelectorAll("tr").length) {
+        // Use current roster
+        [...tbodyTeam.querySelectorAll("tr")].forEach(tr => {
+          const tds = tr.querySelectorAll("td");
+          if (tds.length < 3) return;
+          rows.push({
+            Player: tds[0].textContent,
+            Opponent: tds[1].textContent || "",
+            Minutes: tds[2].querySelector("input")?.value || "30"
+          });
+        });
+      } else {
+        // Blank template
+        rows = [{ Player: "", Opponent: "", Minutes: "" }];
+      }
+      downloadCsv("minutes_template.csv", toCSV(rows));
+    });
+
   } catch (err) {
     alert(`Init failed: ${err.message}`);
     console.error(err);
   }
 }
+
