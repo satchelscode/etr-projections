@@ -6,20 +6,10 @@
   <title>ETR — Minutes → Projections</title>
   <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css" />
   <style>
-    body {
-      padding: 2rem;
-      max-width: 1600px;
-      margin: auto;
-    }
-    table input {
-      width: 70px;
-    }
-    .row {
-      display: flex;
-      flex-direction: row;
-      gap: 12px;
-      align-items: center;
-    }
+    body { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    table input { width: 70px; }
+    .row { display: flex; gap: 12px; align-items: center; }
+    .row > * { flex: 1; }
   </style>
 </head>
 <body>
@@ -27,26 +17,28 @@
   <h2>ETR — Minutes → Projections</h2>
 
   <h3>Single Player</h3>
-
   <form id="singleForm">
-    <label>
-      Player
-      <input id="playerSearch" type="text" placeholder="e.g. kaw" />
-      <select id="player"></select>
-    </label>
-
-    <label>
-      Opponent
-      <input id="opponentSearch" type="text" placeholder="e.g. okc" />
-      <select id="opponent"></select>
-    </label>
-
-    <label>
-      Minutes
-      <input id="minutes" type="number" placeholder="e.g. 34" />
-    </label>
-
-    <button type="submit">Get Projections</button>
+    <div class="row">
+      <label>
+        Player
+        <input id="playerSearch" type="text" placeholder="type to filter (e.g., kaw)" />
+        <select id="player"></select>
+      </label>
+      <label>
+        Opponent
+        <input id="opponentSearch" type="text" placeholder="type to filter (e.g., okc)" />
+        <select id="opponent"></select>
+      </label>
+    </div>
+    <div class="row">
+      <label>
+        Minutes
+        <input id="minutes" type="number" placeholder="e.g. 34" />
+      </label>
+      <div style="flex:0 0 auto; align-self:flex-end;">
+        <button type="submit">Get Projections</button>
+      </div>
+    </div>
   </form>
 
   <table id="singleTbl">
@@ -68,47 +60,33 @@
     <tbody></tbody>
   </table>
 
-
   <hr />
 
   <h3>Team Sheet (Roster → Minutes → Project All)</h3>
-
-  <p>
-    Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV
-  </p>
+  <p>Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV</p>
 
   <div class="row">
-    <label style="flex:1">
+    <label>
       Roster Team
       <select id="teamForRoster"></select>
     </label>
-
-    <label style="flex:1">
+    <label>
       Opponent Team
       <select id="teamOpp"></select>
     </label>
   </div>
 
-  <label>
-    Default minutes
-    <input id="defaultTeamMinutes" type="number" value="30" />
-  </label>
-
   <div class="row">
-    <button id="loadRosterBtn" type="button">Load Roster</button>
-    <button id="projectRosterBtn" type="button">Project All</button>
-    <button id="downloadCsvBtn" type="button">Download CSV</button>
+    <label>
+      Default minutes
+      <input id="defaultTeamMinutes" type="number" value="30" />
+    </label>
+    <div style="flex:0 0 auto; align-self:flex-end; display:flex; gap:10px;">
+      <button id="loadRosterBtn" type="button">Load Roster</button>
+      <button id="projectRosterBtn" type="button">Project All</button>
+      <button id="downloadCsvBtn" type="button">Download CSV</button>
+    </div>
   </div>
-
-
-  <!-- CSV Upload Row -->
-  <div class="row" style="margin-top:12px;">
-    <input id="minsCsv" type="file" accept=".csv" />
-    <button type="button" onclick="window.__applyCsvMinutes()">Apply CSV Minutes</button>
-    <button type="button" onclick="window.__downloadMinutesTemplate()">Download Minutes Template</button>
-    <span id="uploadStatus" style="font-size:12px;opacity:.7;"></span>
-  </div>
-
 
   <table id="teamTbl">
     <thead>
@@ -129,6 +107,8 @@
     <tbody></tbody>
   </table>
 
-  <script src="/static/main.js?v=11"></script>
+  <!-- note: cache-buster set back to stable version -->
+  <script src="/static/main.js?v=7"></script>
 </body>
 </html>
+
