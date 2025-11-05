@@ -6,8 +6,9 @@ from minutes_api import minutes_bp
 
 ART_DIR = Path("artifacts")
 
-\1
-app.register_blueprint(minutes_bp)
+app = Flask(__name__)       # ✅ app is created here
+app.register_blueprint(minutes_bp)   # ✅ register AFTER app exists
+
 # Stats we trained/saved as:
 #   artifacts/model_player_rates_{base}.csv
 #   artifacts/model_opp_adj_{base}.csv
