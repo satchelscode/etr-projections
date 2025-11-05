@@ -1,35 +1,64 @@
-/* ====== ETR Projections — Main Client ======
+/* ====== ETR Projections — Main Client (DROP-IN) ======
    - Populates selects (players/teams/opponents)
-   - Single-player projection
+   - Single-player projection flow
    - Team Sheet load/project/download
    - Minutes CSV upload + apply to Team Sheet
-   ------------------------------------------- */
+   - Robust fallbacks:
+       1) /api/meta
+       2) /api/players + /api/teams + /api/opponents
+       3) /players_master.csv  (CSV fallback)
+   ----------------------------------------------------- */
 
-/* -------------------- Helpers -------------------- */
 const qs  = (s, r = document) => r.querySelector(s);
 const qsa = (s, r = document) => Array.from(r.querySelectorAll(s));
 const fmt1 = (x) => (x === null || x === undefined || Number.isNaN(+x) ? "" : (+x).toFixed(1));
 
-function downloadCSV(filename, rows) {
-  const header = Object.keys(rows[0] || {});
-  const lines = [header.join(",")].concat(
-    rows.map(r => header.map(h => (r[h] ?? "")).join(","))
-  );
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 500);
+/* -------------- CSV Parser (minimal) ---------------- */
+function parseCSV(text) {
+  // very simple CSV parser (no quoted commas)
+  const lines = text.trim().split(/\r?\n/);
+  if (!lines.length) return [];
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cols = line.split(",");
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (cols[i] ?? "").trim(); });
+    return row;
+  });
 }
 
-/* ---------------- Minutes Overrides --------------- */
+/* -------------- CSV-driven meta fallback ------------ */
+async function readPlayersFromCSV() {
+  try {
+    const r = await fetch("/players_master.csv", { cache: "no-store" });
+    if (!r.ok) return { players: [], teams: [], opponents: [] };
+    const txt = await r.text();
+    const rows = parseCSV(txt);
+    // Expected columns in your CSV (best-effort): Player, Team (or player, team)
+    const players = rows
+      .map(row => {
+        const name = row.Player || row.player || row.Name || row.name || "";
+        const team = row.Team || row.team || "";
+        if (!name) return null;
+        return { name, team };
+      })
+      .filter(Boolean);
+
+    const teams = Array.from(new Set(players.map(p => p.team).filter(Boolean))).sort();
+    return { players, teams, opponents: teams.slice() };
+  } catch {
+    return { players: [], teams: [], opponents: [] };
+  }
+}
+
+/* ---------------- Minutes Overrides ----------------- */
 const Minutes = {
   cache: { updated_at: null, overrides: {} },
   norm(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, " "); },
 
   async load() {
     try {
-      const r = await fetch("/api/minutes/overrides");
+      const r = await fetch("/api/minutes/overrides", { cache: "no-store" });
       if (!r.ok) return;
       this.cache = await r.json();
       this.status(this.cache.updated_at ? `Minutes loaded (${this.cache.updated_at})` : "No minutes overrides");
@@ -89,45 +118,56 @@ const Minutes = {
   }
 };
 
-/* --------------------- API ------------------------ */
+/* ---------------------- API ------------------------ */
 const API = {
   async getMeta() {
-    // Try /api/meta first; fall back to granular endpoints
+    // 1) Try /api/meta
     try {
-      const r = await fetch("/api/meta");
-      if (r.ok) return await r.json();
-    } catch { /* ignore */ }
+      const r = await fetch("/api/meta", { cache: "no-store" });
+      if (r.ok) {
+        const j = await r.json();
+        if (j?.players?.length) return j;
+      }
+    } catch {}
 
-    const [players, teams, opps] = await Promise.all([
-      fetch("/api/players").then(r => r.ok ? r.json() : [] ).catch(() => []),
-      fetch("/api/teams").then(r => r.ok ? r.json() : [] ).catch(() => []),
-      fetch("/api/opponents").then(r => r.ok ? r.json() : [] ).catch(() => []),
-    ]);
+    // 2) Try granular endpoints
+    try {
+      const [players, teams, opps] = await Promise.all([
+        fetch("/api/players",   { cache: "no-store" }).then(r => r.ok ? r.json() : [] ).catch(() => []),
+        fetch("/api/teams",     { cache: "no-store" }).then(r => r.ok ? r.json() : [] ).catch(() => []),
+        fetch("/api/opponents", { cache: "no-store" }).then(r => r.ok ? r.json() : [] ).catch(() => []),
+      ]);
+      const teams2 = teams?.length ? teams
+        : Array.from(new Set((players || []).map(p => p.team).filter(Boolean))).sort();
+      if ((players?.length || teams2?.length)) {
+        return { players: players || [], teams: teams2, opponents: (opps?.length ? opps : teams2) };
+      }
+    } catch {}
 
-    // If teams/opps missing, derive from players
-    const derivedTeams = (teams && teams.length) ? teams
-      : Array.from(new Set((players || []).map(p => p.team).filter(Boolean))).sort();
-
-    return {
-      players: players || [],
-      teams: derivedTeams,
-      opponents: (opps && opps.length) ? opps : derivedTeams
-    };
+    // 3) CSV fallback
+    return await readPlayersFromCSV();
   },
 
   async roster(team) {
-    // Try two common patterns
-    const try1 = fetch(`/api/team/${encodeURIComponent(team)}/roster`).then(r => r.ok ? r.json() : null).catch(() => null);
-    const try2 = fetch(`/api/roster?team=${encodeURIComponent(team)}`).then(r => r.ok ? r.json() : null).catch(() => null);
-    const res = (await try1) || (await try2) || [];
-    return Array.isArray(res) ? res : [];
+    // Try two patterns; else derive from CSV by filtering team
+    const try1 = fetch(`/api/team/${encodeURIComponent(team)}/roster`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+    const try2 = fetch(`/api/roster?team=${encodeURIComponent(team)}`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+    let res = (await try1) || (await try2);
+    if (Array.isArray(res)) return res;
+
+    // CSV derive
+    const meta = await readPlayersFromCSV();
+    const players = meta.players.filter(p => (p.team || "").toLowerCase() === String(team || "").toLowerCase());
+    return players.map(p => ({ player: p.name, opponent: "", minutes: "" }));
   },
 
-  async projectSingle({ player, opponent, minutes }) {
+  async projectSingle(payload) {
     const r = await fetch("/api/project", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player, opponent, minutes })
+      body: JSON.stringify(payload)
     });
     if (!r.ok) throw new Error(await r.text());
     return await r.json();
@@ -144,7 +184,7 @@ const API = {
   }
 };
 
-/* --------------------- App ------------------------ */
+/* ---------------------- App ------------------------ */
 const App = {
   meta: { players: [], teams: [], opponents: [] },
   _currentTeam: null,
@@ -160,45 +200,41 @@ const App = {
   },
 
   async loadMeta() {
-    this.meta = await API.getMeta();
+    try {
+      this.meta = await API.getMeta();
 
-    // Populate selects
-    const playerSel = qs("#player");
-    const playerSearch = qs("#playerSearch");
-    const oppSel = qs("#opponent");
-    const oppSearch = qs("#opponentSearch");
-    const rosterTeamSel = qs("#rosterTeam");
-    const opponentTeamSel = qs("#opponentTeam");
+      const playerSel = qs("#player");
+      const playerSearch = qs("#playerSearch");
+      const oppSel = qs("#opponent");
+      const oppSearch = qs("#opponentSearch");
+      const rosterTeamSel = qs("#rosterTeam");
+      const opponentTeamSel = qs("#opponentTeam");
 
-    // Players
-    this.fillSelect(playerSel, this.meta.players.map(p => ({
-      label: p.name || p.player || "",
-      value: p.name || p.player || ""
-    })));
+      const playerItems = (this.meta.players || []).map(p => ({
+        label: p.name || p.player || "",
+        value: p.name || p.player || ""
+      })).filter(x => x.label);
 
-    // Opponents (single-player)
-    this.fillSelect(oppSel, this.meta.opponents.map(t => ({ label: t, value: t })));
+      const oppItems = (this.meta.opponents || []).map(t => ({ label: t, value: t }));
+      const teamItems = (this.meta.teams || []).map(t => ({ label: t, value: t }));
 
-    // Team Sheet selectors
-    this.fillSelect(rosterTeamSel, this.meta.teams.map(t => ({ label: t, value: t })));
-    this.fillSelect(opponentTeamSel, this.meta.opponents.map(t => ({ label: t, value: t })));
+      this.fillSelect(playerSel, playerItems);
+      this.fillSelect(oppSel, oppItems);
+      this.fillSelect(rosterTeamSel, teamItems);
+      this.fillSelect(opponentTeamSel, oppItems.length ? oppItems : teamItems);
 
-    // Simple type-to-filter behavior
-    const filterSelect = (sel, items, q) => {
-      const normq = (q || "").toLowerCase();
-      const filtered = items.filter(x => (x.label || "").toLowerCase().includes(normq));
-      this.fillSelect(sel, filtered);
-    };
+      const filterSelect = (sel, items, q) => {
+        const normq = (q || "").toLowerCase();
+        const filtered = items.filter(x => (x.label || "").toLowerCase().includes(normq));
+        this.fillSelect(sel, filtered);
+      };
 
-    playerSearch?.addEventListener("input", (e) => {
-      const items = this.meta.players.map(p => ({ label: p.name || p.player || "", value: p.name || p.player || "" }));
-      filterSelect(playerSel, items, e.target.value);
-    });
-
-    oppSearch?.addEventListener("input", (e) => {
-      const items = this.meta.opponents.map(t => ({ label: t, value: t }));
-      filterSelect(oppSel, items, e.target.value);
-    });
+      playerSearch?.addEventListener("input", (e) => filterSelect(playerSel, playerItems, e.target.value));
+      oppSearch?.addEventListener("input", (e) => filterSelect(oppSel, oppItems.length ? oppItems : teamItems, e.target.value));
+    } catch (e) {
+      console.error("loadMeta failed:", e);
+      alert("Failed to load player/team lists.");
+    }
   },
 
   fillSelect(selectEl, items) {
@@ -235,7 +271,6 @@ const App = {
       this._currentTeam = team;
 
       let roster = await API.roster(team);
-      // Normalize roster items: { player, opponent, minutes }
       roster = roster.map(r => ({
         player: r.player || r.Player || r.name || r.Name || "",
         opponent: opp || r.opponent || r.Opponent || "",
@@ -243,11 +278,9 @@ const App = {
         _raw: r
       }));
 
-      // Apply default minutes if empty
       const def = parseFloat(qs("#defaultTeamMinutes")?.value || "30");
       roster.forEach(r => { if (!r.minutes && r.minutes !== 0) r.minutes = def; });
 
-      // Apply overrides from Minutes CSV
       roster = Minutes.applyToRoster(roster);
 
       this._roster = roster;
@@ -257,7 +290,6 @@ const App = {
     qs("#projectRosterBtn")?.addEventListener("click", async () => {
       if (!this._roster.length) return;
 
-      // collect current table minutes edits (if any)
       const rows = qsa("#teamTbl tbody tr").map(tr => {
         const player = tr.dataset.player;
         const opponent = tr.dataset.opponent || qs("#opponentTeam")?.value || "";
@@ -267,7 +299,6 @@ const App = {
 
       try {
         const res = await API.projectBulk(rows);
-        // res expected: array of { player, opponent, minutes, pts, reb, ast, 3pm, stl, blk, to, pra }
         this.renderRosterProjected(res);
       } catch (e) {
         console.error(e);
@@ -297,12 +328,13 @@ const App = {
         };
       });
 
-      downloadCSV("team_projections.csv", rows);
+      const fname = `team_projections_${(new Date()).toISOString().slice(0,10)}.csv`;
+      downloadCSV(fname, rows);
     });
   },
 
   wireSearchFilters() {
-    // (Already handled in loadMeta via inputs)
+    // handled in loadMeta
   },
 
   renderSingle(player, opponent, minutes, proj) {
@@ -379,7 +411,6 @@ const App = {
   },
 
   async selectTeam(teamId) {
-    // used by Minutes.refreshCurrentTeam
     qs("#rosterTeam").value = teamId;
     await qs("#loadRosterBtn").click();
   },
@@ -389,7 +420,7 @@ const App = {
   }
 };
 
-/* Boot after DOM is ready */
+/* Boot */
 window.addEventListener("DOMContentLoaded", () => {
   App.init().catch((e) => {
     console.error("Init failed:", e);
