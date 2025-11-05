@@ -3,6 +3,9 @@ import pandas as pd
 import json
 from pathlib import Path
 from minutes_api import minutes_bp
+app = Flask(__name__)
+app.register_blueprint(minutes_bp)
+
 
 ART_DIR = Path("artifacts")
 
