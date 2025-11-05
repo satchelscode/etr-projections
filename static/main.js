@@ -59,22 +59,30 @@ async function init() {
 
     // Load base data
     const opponents = await fetchJSON("/api/opponents");
+
+    // Always fill these three immediately so UI is never empty
     fillSelect(selOpp, opponents);
     fillSelect(selOpponentTeam, opponents);
+    fillSelect(selRosterTeam, opponents); // <-- NEW: seed rosterTeam with NBA codes right away
 
+    // Players for single-player select
     const allPlayers = await fetchJSON("/api/players");
     fillSelect(selPlayer, allPlayers);
 
-    // Try to load players_master for real rosters
-    let playersMaster = [];
-    let teamSet = [];
+    // Try to load players_master for real rosters (optional)
     try {
-      playersMaster = await fetchJSON("/api/players_master");
-      teamSet = [...new Set(playersMaster.map(r => String(r.Team || "").toUpperCase()).filter(Boolean))].sort();
+      const playersMaster = await fetchJSON("/api/players_master");
+      const teamSet = [...new Set(
+        playersMaster.map(r => String(r.Team || "").toUpperCase()).filter(Boolean)
+      )].sort();
+
+      // If players_master is present and non-empty, override rosterTeam with precise list
+      if (teamSet.length) {
+        fillSelect(selRosterTeam, teamSet);
+      }
     } catch (_) {
-      teamSet = opponents.slice(); // fallback: show same team codes
+      // ignore — we already seeded rosterTeam with opponents list
     }
-    fillSelect(selRosterTeam, teamSet);
 
     // Single-player filtering
     inpOsearch?.addEventListener("input", async (ev) => {
@@ -124,12 +132,16 @@ async function init() {
 
     // Helper: get roster list for given team
     async function getRoster(team) {
-      if (playersMaster && playersMaster.length) {
-        return playersMaster
+      try {
+        const pm = await fetchJSON("/api/players_master");
+        const roster = pm
           .filter(r => String(r.Team || "").toUpperCase() === String(team).toUpperCase())
           .map(r => String(r.Player || ""))
           .filter(Boolean)
           .sort();
+        if (roster.length) return roster;
+      } catch (_) {
+        // fall through to backend filter
       }
       // fallback: ask backend to filter
       const arr = await fetchJSON("/api/players?team=" + encodeURIComponent(team));
@@ -146,7 +158,6 @@ async function init() {
 
       tbodyTeam.innerHTML = "";
       const defMin = parseFloat(inpDefaultMin?.value || "30");
-      // Opponent column shows the opponent team you selected
       const oppTeam = selOpponentTeam?.value || "";
 
       roster.forEach(p => {
@@ -192,7 +203,6 @@ async function init() {
         body: JSON.stringify({ rows })
       });
 
-      // Write projections into the table
       out.forEach((r, i) => {
         const tr = tbodyTeam.querySelectorAll("tr")[i];
         if (!tr) return;
