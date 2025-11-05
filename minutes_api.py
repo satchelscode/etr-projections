@@ -13,7 +13,7 @@ os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 MINUTES_STORE = os.path.join(ARTIFACTS_DIR, "minutes_overrides.json")
 
 def _norm(s: str) -> str:
-    return " ".join(str(s or "").strip().lower().split())
+    return " ".join(str(s or "").strip().lower().replace("_", " ").split())
 
 def _load_minutes():
     if os.path.exists(MINUTES_STORE):
@@ -63,6 +63,7 @@ def minutes_upload():
         data = _load_minutes()
         new_map = {}
         count = 0
+
         for row in reader:
             player = (get(row, ["player", "name", "player_name"]) or "").strip()
             mins_raw = (get(row, ["minutes", "mins", "min"]) or "").strip()
@@ -88,4 +89,5 @@ def minutes_template_download():
     with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["player", "opp", "minutes"])
+        # w.writerow(["LeBron James","NYK",34])  # example
     return send_file(path, as_attachment=True, download_name="minutes_template.csv")
