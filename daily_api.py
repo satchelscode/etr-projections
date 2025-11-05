@@ -1,12 +1,12 @@
 # daily_api.py
 # Upload a daily ETR projections CSV, append to history (CSV), retrain artifacts.
-# Robust column resolver (Minutes OR Min, plus common aliases). No parquet deps.
+# Robust column resolver with aliases (Minutes/Min, PTS/Points, etc.). No parquet deps.
 
 from __future__ import annotations
-import json, re, traceback
+import json, re, traceback, os
 from datetime import datetime, timezone
 from pathlib import Path
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory, abort
 import pandas as pd
 
 daily_bp = Blueprint("daily", __name__)
@@ -48,22 +48,28 @@ def _resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
     raise ValueError(f"Missing required column: {target}. Found columns: {list(df.columns)}")
 
 def _norm_df(df: pd.DataFrame) -> pd.DataFrame:
+    # Accept "Minutes" or common variants
     minutes_col = _resolve_col(df, "Minutes", ["Min", "mins", "MINS", "Minute", "MIN"])
+
     req_map = {
         "Player":  _resolve_col(df, "Player", []),
         "Team":    _resolve_col(df, "Team", []),
         "Opp":     _resolve_col(df, "Opp",  ["Opponent"]),
         "Minutes": minutes_col,
-        "PTS":     _resolve_col(df, "PTS",  []),
-        "REB":     _resolve_col(df, "REB",  []),
-        "AST":     _resolve_col(df, "AST",  []),
+
+        # ← updated aliases below
+        "PTS":     _resolve_col(df, "PTS",  ["Points"]),
+        "REB":     _resolve_col(df, "REB",  ["Rebounds"]),
+        "AST":     _resolve_col(df, "AST",  ["Assists"]),
         "3PM":     _resolve_col(df, "3PM",  ["3pt", "3p", "threes", "three pointers made", "three_pointers_made"]),
-        "STL":     _resolve_col(df, "STL",  []),
-        "BLK":     _resolve_col(df, "BLK",  []),
+        "STL":     _resolve_col(df, "STL",  ["Steals"]),
+        "BLK":     _resolve_col(df, "BLK",  ["Blocks"]),
         "TO":      _resolve_col(df, "TO",   ["TOV", "Turnovers"]),
         "PRA":     _resolve_col(df, "PRA",  []),
     }
+
     g = pd.DataFrame({k: df[v] for k, v in req_map.items()})
+
     # normalize values
     g["Player"] = g["Player"].astype(str).str.strip()
     g["Team"]   = g["Team"].astype(str).str.upper().str.strip()
@@ -77,7 +83,6 @@ def _train_full_history(df: pd.DataFrame, min_minutes: float = 6.0):
     df = df.copy()
     df["Minutes"] = pd.to_numeric(df["Minutes"], errors="coerce")
     df = df[(df["Minutes"] > 0) & df["Player"].ne("")]
-    # ensure datetime exists
     if "Date" not in df.columns:
         raise ValueError("History has no Date column after merge.")
     df["Date"] = pd.to_datetime(df["Date"])
@@ -127,6 +132,38 @@ def daily_status():
     size = MASTER.stat().st_size if MASTER.exists() else 0
     return jsonify({"ok": True, "has_master": MASTER.exists(), "master_bytes": size})
 
+@daily_bp.get("/api/daily/raw_list")
+def daily_raw_list():
+    items = []
+    for p in RAW.glob("*.csv"):
+        name = p.name
+        # guess ISO date from filename YYYY-MM-DD.csv
+        date_guess = name.replace(".csv","")
+        try:
+            dt = datetime.fromisoformat(date_guess)
+            date_str = dt.strftime("%Y-%m-%d")
+        except Exception:
+            date_str = name
+        items.append({
+            "name": name,
+            "date": date_str,
+            "size_bytes": p.stat().st_size,
+            "download": f"/daily/raw/{name}",
+        })
+    # sort newest first by date then name
+    items.sort(key=lambda x: x["date"], reverse=True)
+    return jsonify({"ok": True, "items": items})
+
+@daily_bp.get("/daily/raw/<path:fname>")
+def daily_raw_download(fname: str):
+    # basic safety
+    if "/" in fname or "\\" in fname or not fname.endswith(".csv"):
+        abort(404)
+    full = RAW / fname
+    if not full.exists():
+        abort(404)
+    return send_from_directory(RAW, fname, as_attachment=True)
+
 @daily_bp.post("/api/daily/upload")
 def daily_upload():
     try:
@@ -150,7 +187,7 @@ def daily_upload():
         # append to master CSV
         if MASTER.exists():
             m = pd.read_csv(MASTER)
-            # make sure expected columns exist when merging
+            # ensure expected columns exist when merging
             for col in ["Player","Team","Opp","Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA","Date"]:
                 if col not in m.columns:
                     m[col] = pd.Series(dtype=df[col].dtype if col in df.columns else "float64")
@@ -175,6 +212,5 @@ def daily_upload():
         })
 
     except Exception as e:
-        # Return JSON error with traceback snippet for debugging
         tb = traceback.format_exc(limit=2)
         return jsonify({"ok": False, "error": f"Internal error: {e}", "trace": tb}), 500
