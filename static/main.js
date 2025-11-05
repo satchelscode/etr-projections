@@ -1,6 +1,4 @@
-// =======================================================
-// helpers
-// =======================================================
+// =============== helpers ===============
 async function fetchJSON(url, opts = {}) {
   const res = await fetch(url, opts);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -10,11 +8,11 @@ async function fetchJSON(url, opts = {}) {
 function toCSV(rows) {
   if (!rows || !rows.length) return "";
   const headers = Object.keys(rows[0]);
-  const lines = [headers.join(",")];
-  rows.forEach((r) => {
-    lines.push(headers.map((h) => String(r[h] ?? "").replace(/"/g, '""')).join(","));
+  const out = [headers.join(",")];
+  rows.forEach(r => {
+    out.push(headers.map(h => String(r[h] ?? "").replace(/"/g, '""')).join(","));
   });
-  return lines.join("\n");
+  return out.join("\n");
 }
 
 function norm(s) {
@@ -27,120 +25,113 @@ function norm(s) {
     .trim();
 }
 
-
-// =======================================================
-// DOM
-// =======================================================
+// =============== state / DOM ===============
 let selPlayer, selOpp, inpMinutes;
 let inpPlayerSearch, inpOppSearch;
 
-let selRoster, selRosterOpp;
-let selDefaultTeamMinutes;
+let selRosterTeam, selOpponentTeam, inpDefaultMinutes;
+let btnLoadRoster, btnProjectAll, btnDownloadCsv;
 let teamTblBody;
 
-let loadRosterBtn, projectRosterBtn;
-
-
-// =======================================================
-// INIT
-// =======================================================
-async function init() {
+// =============== init ===============
+document.addEventListener("DOMContentLoaded", async () => {
+  // single player
   selPlayer = document.getElementById("player");
   selOpp = document.getElementById("opponent");
   inpMinutes = document.getElementById("minutes");
   inpPlayerSearch = document.getElementById("playerSearch");
   inpOppSearch = document.getElementById("opponentSearch");
 
-  selRoster = document.getElementById("teamForRoster");
-  selRosterOpp = document.getElementById("teamOpp");
-
-  selDefaultTeamMinutes = document.getElementById("defaultTeamMinutes");
-
+  // team sheet
+  selRosterTeam = document.getElementById("teamForRoster");
+  selOpponentTeam = document.getElementById("teamOpp");
+  inpDefaultMinutes = document.getElementById("defaultTeamMinutes");
+  btnLoadRoster = document.getElementById("loadRosterBtn");
+  btnProjectAll = document.getElementById("projectRosterBtn");
+  btnDownloadCsv = document.getElementById("downloadCsvBtn");
   teamTblBody = document.querySelector("#teamTbl tbody");
 
-  loadRosterBtn = document.getElementById("loadRosterBtn");
-  projectRosterBtn = document.getElementById("projectRosterBtn");
+  // populate dropdowns
+  const [players, opponents, master] = await Promise.all([
+    fetchJSON("/api/players"),
+    fetchJSON("/api/opponents"),
+    fetchJSON("/api/players_master"),
+  ]);
 
-  // load lists
-  const allPlayers = await fetchJSON("/api/players");
-  const allOpps = await fetchJSON("/api/opponents");
-  const master = await fetchJSON("/api/players_master");
+  fillSelect(selPlayer, players);
+  fillSelect(selOpp, opponents);
+  fillSelect(selRosterTeam, master.teams);
+  fillSelect(selOpponentTeam, master.teams);
 
-  fillSelect(selPlayer, allPlayers);
-  fillSelect(selOpp, allOpps);
+  // type-to-filter
+  attachTypeFilter(inpPlayerSearch, selPlayer);
+  attachTypeFilter(inpOppSearch, selOpp);
 
-  // roster team dropdown
-  fillSelect(selRoster, master.teams);
-  fillSelect(selRosterOpp, master.teams);
-
-  // type-to filter — single player
-  attachSearch(inpPlayerSearch, selPlayer);
-  attachSearch(inpOppSearch, selOpp);
-
-  // single-player form
-  document.getElementById("singleForm").addEventListener("submit", async (ev) => {
-    ev.preventDefault();
+  // single player submit
+  document.getElementById("singleForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
     const p = selPlayer.value;
     const o = selOpp.value;
     const m = Number(inpMinutes.value);
-    if (!p || !o || !m) return;
-
-    const out = await fetchJSON(`/api/project?player=${encodeURIComponent(p)}&opponent=${encodeURIComponent(o)}&minutes=${m}`);
-    renderSingle(out);
+    if (!p || !o || !Number.isFinite(m)) return;
+    const rows = await fetchJSON(
+      `/api/project?player=${encodeURIComponent(p)}&opponent=${encodeURIComponent(o)}&minutes=${m}`
+    );
+    renderSingle(rows);
   });
 
-  // team load
-  loadRosterBtn.addEventListener("click", async () => {
-    const tm = selRoster.value;
-    if (!tm) return;
-    const roster = await fetchJSON(`/api/roster?team=${tm}`);
-    renderRoster(roster, selRosterOpp.value, Number(selDefaultTeamMinutes.value));
+  // team sheet actions
+  btnLoadRoster.addEventListener("click", async () => {
+    const team = selRosterTeam.value;
+    if (!team) return;
+    const roster = await fetchJSON(`/api/roster?team=${encodeURIComponent(team)}`);
+    renderRoster(roster, selOpponentTeam.value, Number(inpDefaultMinutes.value) || 30);
   });
 
-  // team project
-  projectRosterBtn.addEventListener("click", async () => {
+  btnProjectAll.addEventListener("click", async () => {
     await projectAllRows();
   });
 
-  // CSV map
-  window.csvMinutesMap = new Map();
-}
-document.addEventListener("DOMContentLoaded", init);
+  btnDownloadCsv.addEventListener("click", () => {
+    const rows = extractTeamRows();
+    const csv = toCSV(rows);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "team_projections.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+});
 
-
-// =======================================================
-// dropdown filler
-// =======================================================
+// =============== UI helpers ===============
 function fillSelect(sel, items) {
   sel.innerHTML = "";
-  items.forEach((i) => {
+  items.forEach(v => {
     const o = document.createElement("option");
-    o.value = i;
-    o.textContent = i;
+    o.value = v;
+    o.textContent = v;
     sel.appendChild(o);
   });
 }
 
-function attachSearch(input, select) {
+function attachTypeFilter(input, select) {
   input.addEventListener("input", () => {
     const q = norm(input.value);
     for (let i = 0; i < select.options.length; i++) {
-      const t = norm(select.options[i].textContent);
-      select.options[i].style.display = t.includes(q) ? "" : "none";
+      const txt = norm(select.options[i].textContent);
+      select.options[i].style.display = txt.includes(q) ? "" : "none";
     }
   });
 }
 
-
-// =======================================================
-// Single player
-// =======================================================
+// =============== single player table ===============
 function renderSingle(rows) {
   const tb = document.querySelector("#singleTbl tbody");
   tb.innerHTML = "";
-  rows.forEach((r) => {
+  rows.forEach(r => {
     const tr = document.createElement("tr");
-    ["player", "opponent", "minutes", "pts", "reb", "ast", "3pm", "stl", "blk", "to", "pra"].forEach((k) => {
+    ["player","opponent","minutes","pts","reb","ast","3pm","stl","blk","to","pra"].forEach(k => {
       const td = document.createElement("td");
       td.textContent = r[k];
       tr.appendChild(td);
@@ -149,35 +140,29 @@ function renderSingle(rows) {
   });
 }
 
-
-// =======================================================
-// Roster table
-// =======================================================
-function renderRoster(roster, opp, defMin) {
+// =============== team sheet table ===============
+function renderRoster(rosterPlayers, opponentTeam, defaultMinutes) {
   teamTblBody.innerHTML = "";
-  roster.forEach((p) => {
+  rosterPlayers.forEach(name => {
     const tr = document.createElement("tr");
 
-    // Player
     const tdP = document.createElement("td");
-    tdP.textContent = p;
+    tdP.textContent = name;
     tr.appendChild(tdP);
 
-    // Opp
     const tdO = document.createElement("td");
-    tdO.textContent = opp;
+    tdO.textContent = opponentTeam || "";
     tr.appendChild(tdO);
 
-    // Minutes
     const tdM = document.createElement("td");
     const inp = document.createElement("input");
     inp.type = "number";
-    inp.value = defMin;
+    inp.value = Number.isFinite(defaultMinutes) ? defaultMinutes : 30;
     tdM.appendChild(inp);
     tr.appendChild(tdM);
 
-    // stats placeholders
-    ["pts", "reb", "ast", "3pm", "stl", "blk", "to", "pra"].forEach(() => {
+    // empty stat columns for now
+    ["pts","reb","ast","3pm","stl","blk","to","pra"].forEach(() => {
       const td = document.createElement("td");
       td.textContent = "";
       tr.appendChild(td);
@@ -187,177 +172,44 @@ function renderRoster(roster, opp, defMin) {
   });
 }
 
-
-// =======================================================
-// Bulk project
-// =======================================================
 async function projectAllRows() {
   const trs = [...teamTblBody.querySelectorAll("tr")];
   for (const tr of trs) {
     const tds = tr.querySelectorAll("td");
-    const p = tds[0].textContent;
-    const o = tds[1].textContent;
-    const m = Number(tds[2].querySelector("input").value);
+    const player = tds[0].textContent;
+    const opp = tds[1].textContent;
+    const mins = Number(tds[2].querySelector("input").value);
+    if (!player || !opp || !Number.isFinite(mins)) continue;
 
-    const out = await fetchJSON(`/api/project?player=${encodeURIComponent(p)}&opponent=${encodeURIComponent(o)}&minutes=${m}`);
-    const r = out[0];
-    ["pts", "reb", "ast", "3pm", "stl", "blk", "to", "pra"].forEach((k, idx) => {
-      tds[3 + idx].textContent = r[k];
+    const out = await fetchJSON(
+      `/api/project?player=${encodeURIComponent(player)}&opponent=${encodeURIComponent(opp)}&minutes=${mins}`
+    );
+    const r = out[0] || {};
+    const statKeys = ["pts","reb","ast","3pm","stl","blk","to","pra"];
+    statKeys.forEach((k, i) => {
+      tds[3 + i].textContent = r[k] ?? "";
     });
   }
 }
 
-
-// =======================================================
-// CSV Upload → minutes map
-// =======================================================
-
-function parseCSV(raw) {
+function extractTeamRows() {
   const rows = [];
-  let row = [], cur = "";
-  let inQ = false;
-
-  function pushCell() {
-    row.push(cur);
-    cur = "";
-  }
-  function pushRow() {
-    rows.push(row);
-    row = [];
-  }
-
-  for (let i = 0; i < raw.length; i++) {
-    const c = raw[i];
-    if (inQ) {
-      if (c === '"') {
-        if (raw[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQ = false;
-        }
-      } else {
-        cur += c;
-      }
-    } else {
-      if (c === '"') {
-        inQ = true;
-      } else if (c === ",") {
-        pushCell();
-      } else if (c === "\n" || c === "\r") {
-        if (c === "\r" && raw[i + 1] === "\n") i++;
-        pushCell();
-        pushRow();
-      } else {
-        cur += c;
-      }
-    }
-  }
-  pushCell();
-  pushRow();
-
-  if (!rows.length) return { headers: [], data: [] };
-  const headers = rows[0].map((h) => h.trim());
-  const data = rows.slice(1).map((r) => {
-    const o = {};
-    headers.forEach((h, i) => {
-      o[h] = (r[i] ?? "").toString().trim();
-    });
-    return o;
-  });
-  return { headers, data };
-}
-
-document.getElementById("minsCsv")?.addEventListener("change", async (ev) => {
-  const status = document.getElementById("uploadStatus");
-  const file = ev.target.files?.[0];
-  if (!file) return;
-  const text = await file.text();
-
-  const { headers, data } = parseCSV(text);
-
-  const lower = Object.fromEntries(headers.map(h => [h.toLowerCase(), h]));
-  const playerH = lower.player || lower.name;
-  const minH = lower.minutes || lower.mins;
-  const oppH = lower.opponent || lower.opp || lower.team;
-
-  if (!playerH || !minH) {
-    status.textContent = "CSV must have player + minutes";
-    return;
-  }
-
-  window.csvMinutesMap.clear();
-  let loaded = 0;
-
-  data.forEach((r) => {
-    const key = norm(r[playerH]);
-    if (!key) return;
-    const m = Number(r[minH]);
-    if (!Number.isFinite(m)) return;
-
-    const info = { minutes: m };
-    if (oppH) {
-      const opp = r[oppH]?.toUpperCase();
-      if (/^[A-Z]{2,4}$/.test(opp)) info.opp = opp;
-    }
-    window.csvMinutesMap.set(key, info);
-    loaded++;
-  });
-
-  status.textContent = `Loaded minutes for ${loaded} players`;
-});
-
-
-// =======================================================
-// global CSV buttons
-// =======================================================
-window.__applyCsvMinutes = function () {
-  const status = document.getElementById("uploadStatus");
-  let applied = 0;
-
-  [...teamTblBody.querySelectorAll("tr")].forEach(tr => {
-    const tds = tr.querySelectorAll("td");
-    const key = norm(tds[0].textContent);
-
-    if (window.csvMinutesMap.has(key)) {
-      const info = window.csvMinutesMap.get(key);
-      const minInput = tds[2].querySelector("input");
-      if (info.minutes != null && minInput) {
-        minInput.value = info.minutes;
-        applied++;
-      }
-      if (info.opp) {
-        tds[1].textContent = info.opp;
-      }
-    }
-  });
-
-  status.textContent = applied
-    ? `Applied minutes to ${applied} players`
-    : `No matching players`;
-};
-
-
-window.__downloadMinutesTemplate = function () {
-  const tbody = teamTblBody;
-  let rows = [];
-
-  [...tbody.querySelectorAll("tr")].forEach(tr => {
+  const trs = [...teamTblBody.querySelectorAll("tr")];
+  trs.forEach(tr => {
     const tds = tr.querySelectorAll("td");
     rows.push({
       Player: tds[0].textContent,
       Opponent: tds[1].textContent,
-      Minutes: tds[2].querySelector("input")?.value ?? ""
+      Minutes: tds[2].querySelector("input")?.value ?? "",
+      PTS: tds[3].textContent,
+      REB: tds[4].textContent,
+      AST: tds[5].textContent,
+      "3PM": tds[6].textContent,
+      STL: tds[7].textContent,
+      BLK: tds[8].textContent,
+      TO:  tds[9].textContent,
+      PRA: tds[10].textContent,
     });
   });
-
-  if (!rows.length) rows = [{ Player: "", Opponent: "", Minutes: "" }];
-
-  const csv = toCSV(rows);
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "minutes_template.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
-};
+  return rows;
+}
