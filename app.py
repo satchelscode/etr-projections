@@ -18,15 +18,33 @@ class Model:
         self.opp_adj = {}
         self.players = set()
         self.opponents = set()
+        self.players_master = None          # DataFrame: Player, Team
+        self.team_index = {}                # dict: TEAM -> [players]
+
+        # try to load players master (for roster filtering)
+        pm_path = ART_DIR / "players_master.csv"
+        if pm_path.exists():
+            try:
+                pm = pd.read_csv(pm_path)
+                pm["Player"] = pm["Player"].astype(str)
+                pm["Team"] = pm["Team"].astype(str).str.upper()
+                self.players_master = pm
+                # build team index
+                for t, sub in pm.groupby("Team"):
+                    self.team_index[t] = sorted(sub["Player"].unique().tolist())
+            except Exception:
+                pass
+
+        # load stat artifacts
         for stat in STATS:
             base = stat.replace(" ", "_").lower()
             pr = ART_DIR / f"model_player_rates_{base}.csv"
             oa = ART_DIR / f"model_opp_adj_{base}.csv"
             mj = ART_DIR / f"model_meta_{base}.json"
             if pr.exists() and mj.exists():
-                pr_df = pd.read_csv(pr, encoding="utf-8", engine="python")
+                pr_df = pd.read_csv(pr)
                 try:
-                    oa_df = pd.read_csv(oa, encoding="utf-8", engine="python")
+                    oa_df = pd.read_csv(oa)
                 except Exception:
                     oa_df = pd.DataFrame({"Opponent":[], "opp_adj":[]})
                 with mj.open("r") as f:
@@ -39,21 +57,45 @@ class Model:
 
 model = Model()
 
+# ---------- routes ----------
 @app.get("/")
 def index():
-    if not model.player_rate:
-        # friendly message if artifacts missing
-        return render_template("index.html", missing_artifacts=True)
-    return render_template("index.html", missing_artifacts=False)
+    missing = not bool(model.player_rate)
+    return render_template("index.html", missing_artifacts=missing)
 
 @app.get("/api/players")
 def api_players():
-    return jsonify(sorted(list(model.players)))
+    """Optional query params:
+       - q=prefix  (case-insensitive startswith)
+       - team=TEAM (filter roster if players_master is present)
+    """
+    q = (request.args.get("q") or "").strip().lower()
+    team = (request.args.get("team") or "").strip().upper()
+
+    # base list
+    if team and model.team_index.get(team):
+        base = model.team_index[team]
+    else:
+        base = sorted(list(model.players))
+
+    if q:
+        base = [p for p in base if p.lower().startswith(q)]
+
+    return jsonify(base)
 
 @app.get("/api/opponents")
 def api_opponents():
-    opps = sorted(list(set(list(model.opponents) + ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"])))
+    opps = sorted(list(set(list(model.opponents) + [
+        "ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL",
+        "MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"
+    ])))
     return jsonify(opps)
+
+@app.get("/api/players_master")
+def api_players_master():
+    if model.players_master is None:
+        return jsonify([])
+    return jsonify(model.players_master.to_dict(orient="records"))
 
 @app.post("/api/project")
 def api_project():
@@ -73,7 +115,6 @@ def api_project():
         intercept = float(model.meta[stat]["intercept"])
         rate = model.player_rate[stat].get(player)
         if rate is None:
-            # fallback: median rate
             rate = pd.Series(model.player_rate[stat].values()).median()
         opp_effect = model.opp_adj[stat].get(opponent, 0.0)
         proj = intercept + minutes * float(rate) + float(opp_effect)
