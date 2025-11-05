@@ -1,27 +1,27 @@
 from flask import Flask, render_template, request, jsonify
-import pandas as pd
 import json
 from pathlib import Path
+import pandas as pd
 
 from minutes_api import minutes_bp
+from daily_api import daily_bp  # NEW
 
 ART_DIR = Path("artifacts")
 
 app = Flask(__name__)
-# Optional: limit upload size (25 MB)
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+
+# blueprints
 app.register_blueprint(minutes_bp)
+app.register_blueprint(daily_bp)
 
 STATS = [
     "Points","Assists","Rebounds","Three Pointers Made",
     "Turnovers","Steals","Blocks","PRA",
 ]
 
-def stat_to_base(stat: str) -> str:
-    return stat.replace(" ", "_").lower()
-
-def _norm_name(s: str) -> str:
-    return " ".join(str(s or "").strip().lower().replace("_", " ").split())
+def stat_to_base(s: str) -> str:
+    return s.replace(" ", "_").lower()
 
 def load_minutes_overrides() -> dict:
     store = ART_DIR / "minutes_overrides.json"
@@ -45,16 +45,12 @@ class Model:
 
         pm_path = ART_DIR / "players_master.csv"
         if pm_path.exists():
-            try:
-                pm = pd.read_csv(pm_path)
-                pm["Player"] = pm["Player"].astype(str)
-                pm["Team"] = pm["Team"].astype(str).str.upper()
-                self.players_master = pm
-                for t, sub in pm.groupby("Team"):
-                    roster = sorted(sub["Player"].tolist())
-                    self.team_index[t] = roster
-            except Exception:
-                pass
+            pm = pd.read_csv(pm_path)
+            pm["Player"] = pm["Player"].astype(str)
+            pm["Team"] = pm["Team"].astype(str).str.upper()
+            self.players_master = pm
+            for t, sub in pm.groupby("Team"):
+                self.team_index[t] = sorted(sub["Player"].tolist())
 
         for stat in STATS:
             base = stat_to_base(stat)
@@ -62,34 +58,26 @@ class Model:
             oa = ART_DIR / f"model_opp_adj_{base}.csv"
             mj = ART_DIR / f"model_meta_{base}.json"
 
-            if pr.exists() and mj.exists():
+            if pr.exists():
                 pr_df = pd.read_csv(pr)
-                try:
-                    oa_df = pd.read_csv(oa)
-                except Exception:
-                    oa_df = pd.DataFrame({"Opponent": [], "opp_adj": []})
+                d = dict(zip(pr_df["Player"].astype(str), pr_df["rate_per_min"].astype(float)))
+                self.player_rate[stat] = d
+                self.players.update(d.keys())
+            else:
+                self.player_rate[stat] = {}
 
-                try:
-                    with mj.open("r", encoding="utf-8") as f:
-                        meta = json.load(f)
-                except Exception:
-                    meta = {"intercept": 0.0}
+            if oa.exists():
+                oa_df = pd.read_csv(oa)
+                d2 = dict(zip(oa_df["Opponent"].astype(str), oa_df["opp_adj"].astype(float)))
+                self.opp_adj[stat] = d2
+                self.opponents.update(d2.keys())
+            else:
+                self.opp_adj[stat] = {}
 
-                self.meta[stat] = meta
-
-                if "Player" in pr_df.columns and "rate_per_min" in pr_df.columns:
-                    d = dict(zip(pr_df["Player"].astype(str), pr_df["rate_per_min"].astype(float)))
-                    self.player_rate[stat] = d
-                    self.players.update(list(d.keys()))
-                else:
-                    self.player_rate[stat] = {}
-
-                if "Opponent" in oa_df.columns and "opp_adj" in oa_df.columns:
-                    d2 = dict(zip(oa_df["Opponent"].astype(str), oa_df["opp_adj"].astype(float)))
-                    self.opp_adj[stat] = d2
-                    self.opponents.update(list(d2.keys()))
-                else:
-                    self.opp_adj[stat] = {}
+            if mj.exists():
+                self.meta[stat] = json.loads(mj.read_text(encoding="utf-8"))
+            else:
+                self.meta[stat] = {"intercept": 0.0}
 
         if not self.opponents:
             self.opponents = set([
@@ -102,34 +90,26 @@ model = Model()
 
 def project_row(player: str, opponent: str, minutes: float) -> dict:
     out = {"player": player, "opponent": opponent, "minutes": minutes}
-    if not model.player_rate:
-        return out
     for stat in STATS:
-        if stat not in model.meta:
-            continue
-        intercept = float(model.meta[stat].get("intercept", 0.0))
-        rate = model.player_rate[stat].get(player)
+        intercept = float(model.meta.get(stat, {}).get("intercept", 0.0))
+        rate = model.player_rate.get(stat, {}).get(player)
         if rate is None:
-            vals = list(model.player_rate[stat].values())
+            vals = list(model.player_rate.get(stat, {}).values())
             rate = float(pd.Series(vals).median()) if vals else 0.0
-        opp_effect = float(model.opp_adj[stat].get(opponent, 0.0))
-        proj = intercept + minutes * float(rate) + opp_effect
-        out[f"Proj_{stat}"] = round(float(proj), 2)
+        opp = float(model.opp_adj.get(stat, {}).get(opponent, 0.0))
+        out[f"Proj_{stat}"] = round(intercept + minutes * float(rate) + opp, 2)
     return out
 
 @app.get("/")
 def index():
     missing = not bool(model.player_rate)
+    # nav supports tabs: “proj” (default) & “daily”
     return render_template("index.html", missing_artifacts=missing)
-
-@app.get("/api/opponents")
-def api_opponents():
-    return jsonify(sorted(list(model.opponents)))
 
 @app.get("/api/players")
 def api_players():
-    q = (request.args.get("q") or "").strip().lower()
-    team = (request.args.get("team") or "").strip().upper()
+    q = (request.args.get("q") or "").lower().strip()
+    team = (request.args.get("team") or "").upper().strip()
     if team and model.team_index.get(team):
         base = model.team_index[team]
     else:
@@ -137,6 +117,10 @@ def api_players():
     if q:
         base = [p for p in base if p.lower().startswith(q)]
     return jsonify(base)
+
+@app.get("/api/opponents")
+def api_opponents():
+    return jsonify(sorted(list(model.opponents)))
 
 @app.get("/api/players_master")
 def api_players_master():
@@ -147,46 +131,40 @@ def api_players_master():
 @app.post("/api/project")
 def api_project():
     data = request.get_json(force=True)
-    player = str(data.get("player", ""))
-    opponent = str(data.get("opponent", ""))
-    minutes = float(data.get("minutes", 0) or 0)
-    return jsonify(project_row(player, opponent, minutes))
+    return jsonify(project_row(
+        str(data.get("player","")),
+        str(data.get("opponent","")),
+        float(data.get("minutes",0) or 0)
+    ))
 
 @app.post("/api/project_bulk")
 def api_project_bulk():
     data = request.get_json(force=True)
     rows = data.get("rows", []) or []
-    out = []
-    for r in rows:
-        p = str(r.get("player", "")); o = str(r.get("opponent", "")); m = float(r.get("minutes", 0) or 0)
-        out.append(project_row(p, o, m))
-    return jsonify(out)
+    return jsonify([project_row(str(r.get("player","")), str(r.get("opponent","")), float(r.get("minutes",0) or 0)) for r in rows])
 
 @app.get("/api/teams")
 def api_teams():
     if model.players_master is None:
         return jsonify(sorted(list(model.opponents)))
-    else:
-        arr = sorted(model.players_master["Team"].unique().tolist())
-        return jsonify(arr)
+    return jsonify(sorted(model.players_master["Team"].unique().tolist()))
 
 @app.get("/api/team/<team>/roster")
 def api_team_roster(team):
     t = team.upper()
     if model.team_index.get(t):
-        roster_names = model.team_index[t]
+        roster = model.team_index[t]
     elif model.players_master is not None:
-        roster_names = sorted(model.players_master[model.players_master["Team"] == t]["Player"].tolist())
+        roster = sorted(model.players_master[model.players_master["Team"] == t]["Player"].tolist())
     else:
-        roster_names = []
-
+        roster = []
     overrides = load_minutes_overrides()
-    rows = []
-    for name in roster_names:
-        ov = overrides.get(_norm_name(name))
-        minutes = ov["minutes"] if ov and isinstance(ov.get("minutes"), (int, float)) else ""
-        rows.append({"player": name, "opponent": "", "minutes": minutes})
-    return jsonify(rows)
+    out = []
+    for name in roster:
+        ov = overrides.get(" ".join(name.lower().split()))
+        minutes = ov["minutes"] if ov and isinstance(ov.get("minutes"), (int,float)) else ""
+        out.append({"player": name, "opponent": "", "minutes": minutes})
+    return jsonify(out)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5005, debug=True)
