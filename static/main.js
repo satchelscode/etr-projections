@@ -1,210 +1,259 @@
-async function fetchJSON(url, opts){
+async function fetchJSON(url, opts = {}) {
   const res = await fetch(url, opts);
-  if(!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(`fetch error: ${res.status}`);
   return res.json();
 }
 
-function fillSelect(sel, items){
+function fillSelect(sel, items) {
+  if (!sel) return;
   sel.innerHTML = "";
-  items.forEach(v=>{
-    const o = document.createElement('option');
-    o.value = o.textContent = v;
+  items.forEach((x) => {
+    const o = document.createElement("option");
+    o.value = x;
+    o.textContent = x;
     sel.appendChild(o);
   });
 }
 
-function toCSV(rows){
-  if(!rows.length) return "";
+function toCSV(rows) {
+  if (!rows.length) return "";
   const headers = Object.keys(rows[0]);
-  const csv = [headers.join(",")].concat(
-    rows.map(r => headers.map(h => (r[h] ?? "")).join(","))
-  );
-  return csv.join("\n");
+  const csv = [
+    headers.join(","),
+    ...rows.map((r) =>
+      headers
+        .map((h) => {
+          const v = r[h] ?? "";
+          return String(v).replace(/"/g, '""');
+        })
+        .join(",")
+    ),
+  ].join("\n");
+  return csv;
 }
 
-async function init(){
-  // --- DOM refs
-  const selPlayer = document.getElementById('player');
-  const selOpp = document.getElementById('opponent');
-  const inpPSearch = document.getElementById('playerSearch');
-  const inpOSearch = document.getElementById('opponentSearch');
-  const minutesInput = document.getElementById('minutes');
-
-  const teamForRoster = document.getElementById('teamForRoster');
-  const defaultTeamMinutes = document.getElementById('defaultTeamMinutes');
-  const loadRosterBtn = document.getElementById('loadRosterBtn');
-  const projectRosterBtn = document.getElementById('projectRosterBtn');
-  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-  const teamTbl = document.getElementById('teamTbl');
-  const teamTBody = teamTbl.querySelector('tbody');
-
-  // --- load initial options
-  const allOpponents = await fetchJSON('/api/opponents');
-  let currentTeam = "";
-  let allPlayers = await fetchJSON('/api/players');
-
-  fillSelect(selOpp, allOpponents);
-  fillSelect(teamForRoster, allOpponents);
-  fillSelect(selPlayer, allPlayers);
-
-  // ---- opponent filter / roster mode for single-player ----
-  async function reloadPlayersForTeam(teamCode, qPrefix=""){
-    const params = new URLSearchParams();
-    if(teamCode) params.set("team", teamCode);
-    if(qPrefix) params.set("q", qPrefix);
-    const list = await fetchJSON('/api/players?'+params.toString());
-    fillSelect(selPlayer, list);
-  }
-
-  selOpp.addEventListener('change', async ()=>{
-    currentTeam = selOpp.value || "";
-    await reloadPlayersForTeam(currentTeam, inpPSearch.value.trim().toLowerCase());
-  });
-
-  // ---- type ahead for players (prefix filter) ----
-  let pTimer;
-  inpPSearch.addEventListener('input', ()=>{
-    clearTimeout(pTimer);
-    pTimer = setTimeout(async ()=>{
-      const q = inpPSearch.value.trim().toLowerCase();
-      await reloadPlayersForTeam(currentTeam, q);
-    }, 120);
-  });
-
-  // ---- type ahead for opponents (client-side) ----
-  let oTimer;
-  inpOSearch.addEventListener('input', ()=>{
-    clearTimeout(oTimer);
-    oTimer = setTimeout(()=>{
-      const q = inpOSearch.value.trim().toLowerCase();
-      const filtered = allOpponents.filter(t => t.toLowerCase().startsWith(q));
-      fillSelect(selOpp, filtered.length ? filtered : allOpponents);
-      currentTeam = selOpp.value || "";
-      reloadPlayersForTeam(currentTeam, inpPSearch.value.trim().toLowerCase());
-    }, 120);
-  });
-
-  // ---- single player project ----
-  document.getElementById('projectBtn').addEventListener('click', async ()=>{
-    const player = selPlayer.value;
-    const opponent = selOpp.value;
-    const minutes = parseFloat(minutesInput.value || '0');
-    if(!player || !opponent || !minutes){
-      alert('Pick player, opponent, and enter minutes.');
-      return;
-    }
-    const data = await fetchJSON('/api/project', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({player, opponent, minutes})
-    });
-    const tbl = document.getElementById('result');
-    const tb = tbl.querySelector('tbody');
-    tb.innerHTML = '';
-    const tr = document.createElement('tr');
-    const cells = [
-      data.player, data.opponent, data.minutes,
-      data.Proj_Points, data.Proj_Rebounds, data.Proj_Assists,
-      data['Proj_Three Pointers Made'], data.Proj_Steals, data.Proj_Blocks,
-      data.Proj_Turnovers, data.Proj_PRA
-    ];
-    cells.forEach(v=>{ const td=document.createElement('td'); td.textContent = (v===undefined?'—':v); tr.appendChild(td); });
-    tb.appendChild(tr);
-    tbl.style.display='table';
-  });
-
-  // ===== TEAM SHEET =====
-
-  async function loadRoster(team){
-    const roster = await fetchJSON('/api/players?team='+encodeURIComponent(team));
-    teamTBody.innerHTML = '';
-    roster.forEach(p=>{
-      const tr = document.createElement('tr');
-
-      const tdP = document.createElement('td'); tdP.textContent = p;
-      const tdO = document.createElement('td'); tdO.textContent = team;
-
-      const tdM = document.createElement('td');
-      const mInput = document.createElement('input');
-      mInput.type = 'number'; mInput.step = '0.1';
-      mInput.value = parseFloat(defaultTeamMinutes.value || '30');
-      mInput.style.width = '80px';
-      tdM.appendChild(mInput);
-
-      // placeholder cells for projections
-      const makeCell = () => document.createElement('td');
-      const tdPTS = makeCell(), tdREB = makeCell(), tdAST = makeCell(), td3PM = makeCell(),
-            tdSTL = makeCell(), tdBLK = makeCell(), tdTO = makeCell(), tdPRA = makeCell();
-
-      tr.append(tdP, tdO, tdM, tdPTS, tdREB, tdAST, td3PM, tdSTL, tdBLK, tdTO, tdPRA);
-      teamTBody.appendChild(tr);
-    });
-    teamTbl.style.display = 'table';
-  }
-
-  loadRosterBtn.addEventListener('click', async ()=>{
-    const t = teamForRoster.value;
-    if(!t){ alert('Pick a team'); return; }
-    await loadRoster(t);
-  });
-
-  projectRosterBtn.addEventListener('click', async ()=>{
-    const team = teamForRoster.value;
-    const rows = [];
-    [...teamTBody.querySelectorAll('tr')].forEach(tr=>{
-      const player = tr.children[0].textContent;
-      const minutes = parseFloat(tr.children[2].querySelector('input').value || '0');
-      if(minutes > 0){
-        rows.push({player, opponent: team, minutes});
-      }
-    });
-    if(!rows.length){ alert('Enter minutes for at least one player'); return; }
-
-    const out = await fetchJSON('/api/project_bulk', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({rows})
-    });
-
-    // write results into table cells
-    const idx = {}; out.forEach(r => { idx[r.player] = r; });
-    [...teamTBody.querySelectorAll('tr')].forEach(tr=>{
-      const p = tr.children[0].textContent;
-      const r = idx[p]; if(!r) return;
-      const cells = [
-        r.Proj_Points, r.Proj_Rebounds, r.Proj_Assists,
-        r['Proj_Three Pointers Made'], r.Proj_Steals, r.Proj_Blocks,
-        r.Proj_Turnovers, r.Proj_PRA
-      ];
-      for(let i=0;i<cells.length;i++){
-        tr.children[3+i].textContent = (cells[i]===undefined?'—':cells[i]);
-      }
-    });
-
-    // store for CSV
-    projectRosterBtn.dataset.lastCsv = JSON.stringify(out);
-  });
-
-  downloadCsvBtn.addEventListener('click', ()=>{
-    const raw = projectRosterBtn.dataset.lastCsv;
-    if(!raw){ alert('Run "Project All" first.'); return; }
-    const rows = JSON.parse(raw);
-    const keep = rows.map(r => ({
-      Player: r.player, Opponent: r.opponent, Minutes: r.minutes,
-      PTS: r.Proj_Points, REB: r.Proj_Rebounds, AST: r.Proj_Assists,
-      "3PM": r['Proj_Three Pointers Made'], STL: r.Proj_Steals,
-      BLK: r.Proj_Blocks, TO: r.Proj_Turnovers, PRA: r.Proj_PRA
-    }));
-    const csv = toCSV(keep);
-    const blob = new Blob([csv], {type: "text/csv"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `etr_team_projections_${teamForRoster.value}.csv`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-  });
+function download(filename, text) {
+  const blob = new Blob([text], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-init().catch(err=>{
-  alert('Init failed: '+err.message);
-  console.error(err);
-});
+async function init() {
+  try {
+    // Single-player fields
+    const selPlayer = document.getElementById("player");
+    const selOpp = document.getElementById("opponent");
+    const inpPsearch = document.getElementById("playerSearch");
+    const inpOsearch = document.getElementById("opponentSearch");
+    const inpMinutes = document.getElementById("minutes");
+    const btnProject = document.getElementById("projectBtn");
+    const tblSingle = document.getElementById("result");
+    const tbodySingle = tblSingle?.querySelector("tbody");
+
+    // Team sheet fields
+    const selTeamFor = document.getElementById("teamForRoster");
+    const inpDefaultMin = document.getElementById("defaultTeamMinutes");
+    const btnLoadRoster = document.getElementById("loadRosterBtn");
+    const btnProjectRoster = document.getElementById("projectRosterBtn");
+    const btnDownloadCsv = document.getElementById("downloadCsvBtn");
+    const tblTeam = document.getElementById("teamTbl");
+    const tbodyTeam = tblTeam?.querySelector("tbody");
+
+    let allOpponents = [];
+    let allPlayers = [];
+    let rosterPlayers = [];
+
+    // Load initial dropdowns
+    allOpponents = await fetchJSON("/api/opponents");
+    fillSelect(selOpp, allOpponents);
+    fillSelect(selTeamFor, allOpponents);
+
+    allPlayers = await fetchJSON("/api/players");
+    fillSelect(selPlayer, allPlayers);
+
+    // Filtering for single-player
+    const filterOpp = async (prefix) => {
+      const p = new URLSearchParams();
+      if (prefix) p.set("q", prefix);
+      const arr = await fetchJSON("/api/opponents?" + p.toString());
+      fillSelect(selOpp, arr);
+    };
+
+    const filterPlayers = async (prefix, team = "") => {
+      const p = new URLSearchParams();
+      if (team) p.set("team", team);
+      if (prefix) p.set("q", prefix);
+      const arr = await fetchJSON("/api/players?" + p.toString());
+      fillSelect(selPlayer, arr);
+    };
+
+    inpOsearch?.addEventListener("input", (ev) => {
+      filterOpp(ev.target.value.trim().toLowerCase());
+    });
+
+    // Single-player: filter by text (no team param)
+    inpPsearch?.addEventListener("input", (ev) => {
+      filterPlayers(ev.target.value.trim().toLowerCase(), "");
+    });
+
+    // ---- Single Player Project ----
+    btnProject?.addEventListener("click", async () => {
+      const player = selPlayer?.value || "";
+      const opponent = selOpp?.value || "";
+      const minutes = parseFloat(inpMinutes?.value || 0);
+
+      if (!player || !opponent || !minutes) {
+        alert("Please provide player, opponent, and minutes");
+        return;
+      }
+
+      const body = { player, opponent, minutes };
+      const proj = await fetchJSON("/api/project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!tbodySingle) return;
+      tbodySingle.innerHTML = "";
+      const tr = document.createElement("tr");
+      [
+        "player",
+        "opponent",
+        "minutes",
+        "Proj_Points",
+        "Proj_Rebounds",
+        "Proj_Assists",
+        "Proj_Three Pointers Made",
+        "Proj_Steals",
+        "Proj_Blocks",
+        "Proj_Turnovers",
+        "Proj_PRA",
+      ].forEach((h) => {
+        const td = document.createElement("td");
+        td.textContent = proj[h] ?? "";
+        tr.appendChild(td);
+      });
+      tbodySingle.appendChild(tr);
+      tblSingle.style.display = "";
+    });
+
+    // ---- Team Sheet Roster Load ----
+    btnLoadRoster?.addEventListener("click", async () => {
+      const team = selTeamFor?.value || "";
+      if (!team) return;
+      rosterPlayers = await fetchJSON(`/api/players?team=${team}`);
+      rosterPlayers = rosterPlayers.slice(0, 12); // reasonable limit
+
+      if (!tbodyTeam) return;
+      tbodyTeam.innerHTML = "";
+      const defMin = parseFloat(inpDefaultMin?.value || "30");
+
+      rosterPlayers.forEach((p) => {
+        const tr = document.createElement("tr");
+
+        const tdName = document.createElement("td");
+        tdName.textContent = p;
+        tr.appendChild(tdName);
+
+        const tdOpp = document.createElement("td");
+        tdOpp.textContent = team;
+        tr.appendChild(tdOpp);
+
+        const tdMin = document.createElement("td");
+        const mInput = document.createElement("input");
+        mInput.type = "number";
+        mInput.value = String(defMin);
+        tdMin.appendChild(mInput);
+        tr.appendChild(tdMin);
+
+        ["PTS", "REB", "AST", "3PM", "STL", "BLK", "TO", "PRA"].forEach(() => {
+          const td = document.createElement("td");
+          td.textContent = "";
+          tr.appendChild(td);
+        });
+
+        tbodyTeam.appendChild(tr);
+      });
+
+      tblTeam.style.display = "";
+    });
+
+    // ---- Team Sheet Project All ----
+    btnProjectRoster?.addEventListener("click", async () => {
+      if (!tbodyTeam) return;
+      const rows = [];
+      const trs = tbodyTeam.querySelectorAll("tr");
+
+      trs.forEach((tr) => {
+        const tds = tr.querySelectorAll("td");
+        if (tds.length < 3) return;
+        const player = tds[0].textContent;
+        const opponent = tds[1].textContent;
+        const minutes = parseFloat(tds[2].querySelector("input")?.value || 0);
+        rows.push({ player, opponent, minutes });
+      });
+
+      if (!rows.length) return;
+
+      const out = await fetchJSON("/api/project_bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+
+      // Fill table
+      out.forEach((r, i) => {
+        const tr = trs[i];
+        if (!tr) return;
+        const tds = tr.querySelectorAll("td");
+        if (tds.length < 11) return;
+        tds[3].textContent = r.Proj_Points ?? "";
+        tds[4].textContent = r.Proj_Rebounds ?? "";
+        tds[5].textContent = r.Proj_Assists ?? "";
+        tds[6].textContent = r["Proj_Three Pointers Made"] ?? "";
+        tds[7].textContent = r.Proj_Steals ?? "";
+        tds[8].textContent = r.Proj_Blocks ?? "";
+        tds[9].textContent = r.Proj_Turnovers ?? "";
+        tds[10].textContent = r.Proj_PRA ?? "";
+      });
+    });
+
+    // ---- Download CSV ----
+    btnDownloadCsv?.addEventListener("click", () => {
+      if (!tbodyTeam) return;
+      const trs = tbodyTeam.querySelectorAll("tr");
+      const arr = [];
+
+      trs.forEach((tr) => {
+        const tds = tr.querySelectorAll("td");
+        if (tds.length < 11) return;
+        arr.push({
+          Player: tds[0].textContent,
+          Opp: tds[1].textContent,
+          Minutes: tds[2].querySelector("input")?.value || "",
+          PTS: tds[3].textContent,
+          REB: tds[4].textContent,
+          AST: tds[5].textContent,
+          "3PM": tds[6].textContent,
+          STL: tds[7].textContent,
+          BLK: tds[8].textContent,
+          TO: tds[9].textContent,
+          PRA: tds[10].textContent,
+        });
+      });
+
+      const csv = toCSV(arr);
+      download("team_projections.csv", csv);
+    });
+  } catch (err) {
+    alert(`Init failed: ${err.message}`);
+    console.error(err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", init);
 
