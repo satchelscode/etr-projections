@@ -89,5 +89,5 @@ def minutes_template_download():
     with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["player", "opp", "minutes"])
-        # w.writerow(["LeBron James","NYK",34])  # example
+        # w.writerow(["LeBron James","NYK",34])  # example row
     return send_file(path, as_attachment=True, download_name="minutes_template.csv")
