@@ -19,6 +19,8 @@
     hr { margin: 28px 0; border: none; border-top: 1px solid #ddd; }
     .labelrow { display: flex; justify-content: space-between; align-items: center; }
     .subtext { font-size: 12px; color: #777; }
+    .controls-inline { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+    .status { font-size:12px; opacity:0.8; }
   </style>
 </head>
 <body>
@@ -99,9 +101,11 @@
     <div></div>
   </div>
 
-  <button id="loadRosterBtn">Load Roster</button>
-  <button id="projectRosterBtn">Project All</button>
-  <button id="downloadCsvBtn">Download CSV</button>
+  <div class="controls-inline">
+    <button id="loadRosterBtn">Load Roster</button>
+    <button id="projectRosterBtn">Project All</button>
+    <button id="downloadCsvBtn">Download CSV</button>
+  </div>
 
   <table id="teamTbl" style="display:none">
     <thead>
@@ -113,18 +117,17 @@
     </thead>
     <tbody></tbody>
   </table>
+
+  <!-- Minutes Upload controls (kept simple; no layout shift) -->
+  <hr />
+  <h3>Minutes Upload</h3>
+  <div class="controls-inline">
+    <input id="minutes-file" type="file" accept=".csv" style="display:none" />
+    <button id="btn-upload-minutes" type="button">Apply CSV Minutes</button>
+    <a id="link-minutes-template" href="/api/minutes/template.csv">Download minutes template</a>
+    <span id="minutes-upload-status" class="status"></span>
+  </div>
 </div>
-
-  <!-- Minutes Upload controls (non-intrusive) -->
-<div id="minutes-upload-controls" style="display:flex; gap:8px; align-items:center;">
-  <input id="minutes-file" type="file" accept=".csv" style="display:none" />
-  <button id="btn-upload-minutes" type="button">Apply CSV Minutes</button>
-  <a id="link-minutes-template" href="/api/minutes/template.csv">Download minutes template</a>
-  <span id="minutes-upload-status" style="font-size:12px; opacity:0.8;"></span>
-</div>
-
-<!-- ensure your existing HTML remains unchanged below -->
-
 
 <!-- bump version when updating JS -->
 <script src="/static/main.js?v=12"></script>
