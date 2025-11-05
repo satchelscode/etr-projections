@@ -115,7 +115,18 @@
   </table>
 </div>
 
+  <!-- Minutes Upload controls (non-intrusive) -->
+<div id="minutes-upload-controls" style="display:flex; gap:8px; align-items:center;">
+  <input id="minutes-file" type="file" accept=".csv" style="display:none" />
+  <button id="btn-upload-minutes" type="button">Apply CSV Minutes</button>
+  <a id="link-minutes-template" href="/api/minutes/template.csv">Download minutes template</a>
+  <span id="minutes-upload-status" style="font-size:12px; opacity:0.8;"></span>
+</div>
+
+<!-- ensure your existing HTML remains unchanged below -->
+
+
 <!-- bump version when updating JS -->
-<script src="/static/main.js?v=8"></script>
+<script src="/static/main.js?v=12"></script>
 </body>
 </html>
