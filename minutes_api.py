@@ -29,16 +29,28 @@ def _save_minutes(payload):
     with open(MINUTES_STORE, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
+@minutes_bp.route("/api/minutes/health", methods=["GET"])
+def minutes_health():
+    return jsonify({"ok": True, "has_store": os.path.exists(MINUTES_STORE)})
+
 @minutes_bp.route("/api/minutes/overrides", methods=["GET"])
 def minutes_overrides_get():
     return jsonify(_load_minutes())
 
 @minutes_bp.route("/api/minutes/upload", methods=["POST"])
 def minutes_upload():
+    # Defensive checks
+    if not request.files:
+        return jsonify({"ok": False, "error": "No files in request"}), 400
     if "file" not in request.files:
-        return jsonify({"ok": False, "error": "No file field 'file'"}), 400
+        return jsonify({"ok": False, "error": "Missing 'file' field"}), 400
+
     f = request.files["file"]
-    content = f.read().decode("utf-8", errors="ignore")
+    try:
+        content = f.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Read error: {e}"}), 400
+
     if not content.strip():
         return jsonify({"ok": False, "error": "Empty file"}), 400
 
@@ -81,7 +93,7 @@ def minutes_upload():
         _save_minutes(data)
         return jsonify({"ok": True, "count": count, "updated_at": data["updated_at"]})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return jsonify({"ok": False, "error": f"Parse error: {e}"}), 500
 
 @minutes_bp.route("/api/minutes/template.csv", methods=["GET"])
 def minutes_template_download():
@@ -89,5 +101,4 @@ def minutes_template_download():
     with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["player", "opp", "minutes"])
-        # w.writerow(["LeBron James","NYK",34])  # example row
     return send_file(path, as_attachment=True, download_name="minutes_template.csv")
