@@ -3,22 +3,22 @@ import json
 from pathlib import Path
 import pandas as pd
 
+# Blueprints
 from minutes_api import minutes_bp
 from daily_api import daily_bp
-app.register_blueprint(daily_bp)
 
 ART_DIR = Path("artifacts")
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB uploads
 
-# blueprints
+# Register blueprints (once, after app exists)
 app.register_blueprint(minutes_bp)
 app.register_blueprint(daily_bp)
 
 STATS = [
-    "Points","Assists","Rebounds","Three Pointers Made",
-    "Turnovers","Steals","Blocks","PRA",
+    "Points", "Assists", "Rebounds", "Three Pointers Made",
+    "Turnovers", "Steals", "Blocks", "PRA",
 ]
 
 def stat_to_base(s: str) -> str:
@@ -104,7 +104,7 @@ def project_row(player: str, opponent: str, minutes: float) -> dict:
 @app.get("/")
 def index():
     missing = not bool(model.player_rate)
-    # nav supports tabs: “proj” (default) & “daily”
+    # nav supports tabs in index.html
     return render_template("index.html", missing_artifacts=missing)
 
 @app.get("/api/players")
