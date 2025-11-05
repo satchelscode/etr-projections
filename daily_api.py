@@ -1,8 +1,9 @@
 # daily_api.py
-# Upload a daily ETR projections CSV, append to history, retrain artifacts (full history).
-# Robust column resolver: accepts Minutes or Min (and many common aliases).
+# Upload a daily ETR projections CSV, append to history (CSV), retrain artifacts.
+# Robust column resolver (Minutes OR Min, plus common aliases). No parquet deps.
 
-import os, json, re
+from __future__ import annotations
+import json, re, traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from flask import Blueprint, request, jsonify
@@ -13,7 +14,7 @@ daily_bp = Blueprint("daily", __name__)
 REPO = Path(__file__).resolve().parent
 DATA = REPO / "data"
 RAW  = DATA / "raw"
-MASTER = DATA / "master.parquet"
+MASTER = DATA / "master.csv"      # CSV (no pyarrow/fastparquet)
 ART  = REPO / "artifacts"
 
 RAW.mkdir(parents=True, exist_ok=True)
@@ -33,7 +34,7 @@ STATS = [
 
 def _norm(s: str) -> str:
     # normalize header names: lowercase, remove non-alnum
-    return re.sub(r"[^a-z0-9]+", "", s.strip().lower())
+    return re.sub(r"[^a-z0-9]+", "", str(s).strip().lower())
 
 def _resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
     want = _norm(target)
@@ -47,21 +48,20 @@ def _resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
     raise ValueError(f"Missing required column: {target}. Found columns: {list(df.columns)}")
 
 def _norm_df(df: pd.DataFrame) -> pd.DataFrame:
-    # Flexible minutes: accept Minutes OR Min (+ variants)
     minutes_col = _resolve_col(df, "Minutes", ["Min", "mins", "MINS", "Minute", "MIN"])
     req_map = {
-        "Player": _resolve_col(df, "Player", []),
-        "Team":   _resolve_col(df, "Team", []),
-        "Opp":    _resolve_col(df, "Opp",  ["Opponent"]),
+        "Player":  _resolve_col(df, "Player", []),
+        "Team":    _resolve_col(df, "Team", []),
+        "Opp":     _resolve_col(df, "Opp",  ["Opponent"]),
         "Minutes": minutes_col,
-        "PTS":    _resolve_col(df, "PTS",  []),
-        "REB":    _resolve_col(df, "REB",  []),
-        "AST":    _resolve_col(df, "AST",  []),
-        "3PM":    _resolve_col(df, "3PM",  ["3pt", "3p", "threes", "three pointers made", "three_pointers_made"]),
-        "STL":    _resolve_col(df, "STL",  []),
-        "BLK":    _resolve_col(df, "BLK",  []),
-        "TO":     _resolve_col(df, "TO",   ["TOV", "Turnovers"]),
-        "PRA":    _resolve_col(df, "PRA",  []),
+        "PTS":     _resolve_col(df, "PTS",  []),
+        "REB":     _resolve_col(df, "REB",  []),
+        "AST":     _resolve_col(df, "AST",  []),
+        "3PM":     _resolve_col(df, "3PM",  ["3pt", "3p", "threes", "three pointers made", "three_pointers_made"]),
+        "STL":     _resolve_col(df, "STL",  []),
+        "BLK":     _resolve_col(df, "BLK",  []),
+        "TO":      _resolve_col(df, "TO",   ["TOV", "Turnovers"]),
+        "PRA":     _resolve_col(df, "PRA",  []),
     }
     g = pd.DataFrame({k: df[v] for k, v in req_map.items()})
     # normalize values
@@ -77,6 +77,9 @@ def _train_full_history(df: pd.DataFrame, min_minutes: float = 6.0):
     df = df.copy()
     df["Minutes"] = pd.to_numeric(df["Minutes"], errors="coerce")
     df = df[(df["Minutes"] > 0) & df["Player"].ne("")]
+    # ensure datetime exists
+    if "Date" not in df.columns:
+        raise ValueError("History has no Date column after merge.")
     df["Date"] = pd.to_datetime(df["Date"])
 
     for stat_name, stat_col in STATS:
@@ -126,38 +129,52 @@ def daily_status():
 
 @daily_bp.post("/api/daily/upload")
 def daily_upload():
-    if "file" not in request.files:
-        return jsonify({"ok": False, "error": "Missing file"}), 400
-    date_str = (request.form.get("date") or "").strip() or datetime.now().strftime("%Y-%m-%d")
-
-    f = request.files["file"]
     try:
-        df = pd.read_csv(f)
-        df = _norm_df(df)
+        if "file" not in request.files:
+            return jsonify({"ok": False, "error": "Missing file"}), 400
+        date_str = (request.form.get("date") or "").strip() or datetime.now().strftime("%Y-%m-%d")
+
+        f = request.files["file"]
+        try:
+            df = pd.read_csv(f)
+            df = _norm_df(df)
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"CSV parse error: {e}"}), 400
+
+        df["Date"] = pd.to_datetime(date_str).normalize()
+
+        # save raw
+        out_raw = RAW / f"{date_str}.csv"
+        df.to_csv(out_raw, index=False)
+
+        # append to master CSV
+        if MASTER.exists():
+            m = pd.read_csv(MASTER)
+            # make sure expected columns exist when merging
+            for col in ["Player","Team","Opp","Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA","Date"]:
+                if col not in m.columns:
+                    m[col] = pd.Series(dtype=df[col].dtype if col in df.columns else "float64")
+            m = pd.concat([m, df], ignore_index=True)
+        else:
+            m = df.copy()
+
+        # de-dup by (Date, Player, Opp)
+        m["Date"] = pd.to_datetime(m["Date"])
+        m = m.sort_values(["Date","Player","Opp"]).drop_duplicates(subset=["Date","Player","Opp"], keep="last")
+        m.to_csv(MASTER, index=False)
+
+        # retrain
+        _train_full_history(m)
+
+        return jsonify({
+            "ok": True,
+            "date": date_str,
+            "added_rows": int(len(df)),
+            "master_rows": int(len(m)),
+            "message": f"Uploaded {len(df)} rows for {date_str} and retrained artifacts."
+        })
+
     except Exception as e:
-        return jsonify({"ok": False, "error": f"CSV parse error: {e}"}), 400
-
-    df["Date"] = pd.to_datetime(date_str).normalize()
-
-    out_raw = RAW / f"{date_str}.csv"
-    df.to_csv(out_raw, index=False)
-
-    if MASTER.exists():
-        m = pd.read_parquet(MASTER)
-        m = pd.concat([m, df], ignore_index=True)
-    else:
-        m = df.copy()
-
-    m = m.sort_values(["Date","Player","Opp"]).drop_duplicates(subset=["Date","Player","Opp"], keep="last")
-    m.to_parquet(MASTER, index=False)
-
-    _train_full_history(m)
-
-    return jsonify({
-        "ok": True,
-        "date": date_str,
-        "added_rows": int(len(df)),
-        "master_rows": int(len(m)),
-        "message": f"Uploaded {len(df)} rows for {date_str} and retrained artifacts."
-    })
-
+        # Return JSON error with traceback snippet for debugging
+        tb = traceback.format_exc(limit=2)
+        return jsonify({"ok": False, "error": f"Internal error: {e}", "trace": tb}), 500
