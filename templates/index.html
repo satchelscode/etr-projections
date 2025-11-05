@@ -109,25 +109,30 @@
   </div>
 </div>
 
-<!-- ==== DAILY ETR MODELS VIEW ==== -->
-<div class="card view" id="view-daily">
-  <h2>Daily ETR Models</h2>
-  <p class="muted">Drop today’s ETR projection CSV here (columns: Player, Team, Opp, Minutes, PTS, REB, AST, 3PM, STL, BLK, TO, PRA). We’ll append it to history and retrain artifacts on the full dataset.</p>
+<!-- Daily ETR Models tab content -->
+<div id="daily-tab" style="margin-top:16px;">
+  <p>Drop today’s ETR projection CSV here (columns: Player, Team, Opp, Minutes, PTS, REB, AST, 3PM, STL, BLK, TO, PRA). We’ll append it to history and retrain artifacts on the full dataset.</p>
 
-  <div class="row">
+  <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1000px;">
     <div>
       <label>CSV file</label>
-      <input id="daily-file" type="file" accept=".csv" />
+      <input id="daily-file" type="file" accept=".csv" style="display:block;margin-top:6px;width:100%;" />
     </div>
     <div>
       <label>Date (YYYY-MM-DD)</label>
-      <input id="daily-date" type="date" />
+      <input id="daily-date" type="date" style="display:block;margin-top:6px;width:100%;" />
     </div>
   </div>
 
-  <button id="daily-upload-btn">Upload & Retrain</button>
-  <div id="daily-status" class="muted" style="margin-top:8px;"></div>
+  <button id="daily-upload-btn" style="margin-top:12px;">Upload & Retrain</button>
+  <div id="daily-status" class="muted" style="margin-top:10px;"></div>
+
+  <!-- Library of uploaded raw CSVs -->
+  <div id="daily-library" style="margin-top:20px;"></div>
 </div>
+
+<!-- bump version when updating JS -->
+<script src="/static/daily.js?v=16"></script>
 
 <!-- scripts -->
 <script src="/static/main.js?v=15"></script>
