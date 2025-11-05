@@ -1,14 +1,12 @@
 # daily_api.py
-# Upload a daily ETR projections CSV, append to full history, retrain artifacts.
-# Uses the same artifact formats your app already consumes.
+# Upload a daily ETR projections CSV, append to history, retrain artifacts (full history).
+# Robust column resolver: accepts Minutes or Min (and many common aliases).
 
-import os, json, csv
+import os, json, re
 from datetime import datetime, timezone
 from pathlib import Path
 from flask import Blueprint, request, jsonify
-
 import pandas as pd
-import numpy as np
 
 daily_bp = Blueprint("daily", __name__)
 
@@ -33,22 +31,41 @@ STATS = [
     ("PRA","PRA"),
 ]
 
+def _norm(s: str) -> str:
+    # normalize header names: lowercase, remove non-alnum
+    return re.sub(r"[^a-z0-9]+", "", s.strip().lower())
+
+def _resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
+    want = _norm(target)
+    cols_norm = { _norm(c): c for c in df.columns }
+    if want in cols_norm:
+        return cols_norm[want]
+    for a in aliases:
+        na = _norm(a)
+        if na in cols_norm:
+            return cols_norm[na]
+    raise ValueError(f"Missing required column: {target}. Found columns: {list(df.columns)}")
+
 def _norm_df(df: pd.DataFrame) -> pd.DataFrame:
-    req = ["Player","Team","Opp","Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA"]
-    cols = {c.lower(): c for c in df.columns}
-    out = {}
-    for want in req:
-        key = want.lower()
-        match = None
-        for c in df.columns:
-            if c.strip().lower() == key:
-                match = c
-                break
-        if match is None:
-            raise ValueError(f"Missing required column: {want}")
-        out[want] = df[match]
-    g = pd.DataFrame(out)
-    g["Player"] = g["Player"].astype(str).strip()
+    # Flexible minutes: accept Minutes OR Min (+ variants)
+    minutes_col = _resolve_col(df, "Minutes", ["Min", "mins", "MINS", "Minute", "MIN"])
+    req_map = {
+        "Player": _resolve_col(df, "Player", []),
+        "Team":   _resolve_col(df, "Team", []),
+        "Opp":    _resolve_col(df, "Opp",  ["Opponent"]),
+        "Minutes": minutes_col,
+        "PTS":    _resolve_col(df, "PTS",  []),
+        "REB":    _resolve_col(df, "REB",  []),
+        "AST":    _resolve_col(df, "AST",  []),
+        "3PM":    _resolve_col(df, "3PM",  ["3pt", "3p", "threes", "three pointers made", "three_pointers_made"]),
+        "STL":    _resolve_col(df, "STL",  []),
+        "BLK":    _resolve_col(df, "BLK",  []),
+        "TO":     _resolve_col(df, "TO",   ["TOV", "Turnovers"]),
+        "PRA":    _resolve_col(df, "PRA",  []),
+    }
+    g = pd.DataFrame({k: df[v] for k, v in req_map.items()})
+    # normalize values
+    g["Player"] = g["Player"].astype(str).str.strip()
     g["Team"]   = g["Team"].astype(str).str.upper().str.strip()
     g["Opp"]    = g["Opp"].astype(str).str.upper().str.strip()
     for k in ["Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA"]:
@@ -57,7 +74,7 @@ def _norm_df(df: pd.DataFrame) -> pd.DataFrame:
     return g
 
 def _train_full_history(df: pd.DataFrame, min_minutes: float = 6.0):
-    """Rebuild artifacts from full history (stable, minutes-weighted)."""
+    df = df.copy()
     df["Minutes"] = pd.to_numeric(df["Minutes"], errors="coerce")
     df = df[(df["Minutes"] > 0) & df["Player"].ne("")]
     df["Date"] = pd.to_datetime(df["Date"])
@@ -109,17 +126,9 @@ def daily_status():
 
 @daily_bp.post("/api/daily/upload")
 def daily_upload():
-    """
-    Accept CSV + date (YYYY-MM-DD). Append to history, retrain artifacts.
-    Form fields:
-      file: CSV file
-      date: YYYY-MM-DD (optional; default=server today)
-    """
     if "file" not in request.files:
         return jsonify({"ok": False, "error": "Missing file"}), 400
-    date_str = (request.form.get("date") or "").strip()
-    if not date_str:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = (request.form.get("date") or "").strip() or datetime.now().strftime("%Y-%m-%d")
 
     f = request.files["file"]
     try:
@@ -130,7 +139,6 @@ def daily_upload():
 
     df["Date"] = pd.to_datetime(date_str).normalize()
 
-    # Save raw day & update master
     out_raw = RAW / f"{date_str}.csv"
     df.to_csv(out_raw, index=False)
 
@@ -143,7 +151,6 @@ def daily_upload():
     m = m.sort_values(["Date","Player","Opp"]).drop_duplicates(subset=["Date","Player","Opp"], keep="last")
     m.to_parquet(MASTER, index=False)
 
-    # Retrain from full history
     _train_full_history(m)
 
     return jsonify({
@@ -153,3 +160,4 @@ def daily_upload():
         "master_rows": int(len(m)),
         "message": f"Uploaded {len(df)} rows for {date_str} and retrained artifacts."
     })
+
