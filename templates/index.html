@@ -102,7 +102,14 @@
   <button id="loadRosterBtn">Load Roster</button>
   <button id="projectRosterBtn">Project All</button>
   <button id="downloadCsvBtn">Download CSV</button>
-
+<!-- Minutes CSV uploader -->
+<div class="row" style="margin-top:10px; display:flex; gap:12px; align-items:center;">
+  <input id="minsCsv" type="file" accept=".csv" />
+  <button id="applyCsvMinutesBtn" type="button">Apply CSV Minutes</button>
+  <button id="downloadMinutesTemplateBtn" type="button">Download Minutes Template</button>
+  <span id="uploadStatus" style="font-size:12px; opacity:.7;"></span>
+</div>
+  
   <table id="teamTbl" style="display:none">
     <thead>
       <tr>
