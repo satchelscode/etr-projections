@@ -44,6 +44,7 @@ def minutes_upload():
         return jsonify({"ok": False, "error": "Empty file"}), 400
 
     try:
+        # detect delimiter, allow comma/semicolon/tab/pipe
         sample = content[:2048]
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
@@ -64,6 +65,7 @@ def minutes_upload():
         data = _load_minutes()
         new_map = {}
         count = 0
+
         for row in reader:
             player = (get(row, ["player", "name", "player_name"]) or "").strip()
             mins_raw = (get(row, ["minutes", "mins", "min"]) or "").strip()
