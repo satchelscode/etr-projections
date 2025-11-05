@@ -78,17 +78,25 @@
 
   <!-- TEAM SHEET -->
   <h3>Team Sheet (Roster → Minutes → Project All)</h3>
-  <p class="muted">Pick a team → load roster → enter minutes → bulk project → download CSV</p>
+  <p class="muted">Pick a roster team → pick the opponent they face → load roster → enter minutes → bulk project → download CSV</p>
 
   <div class="row">
     <div>
-      <label>Opponent (Roster)</label>
-      <select id="teamForRoster"></select>
+      <label>Roster Team</label>
+      <select id="rosterTeam"></select>
     </div>
+    <div>
+      <label>Opponent Team</label>
+      <select id="opponentTeam"></select>
+    </div>
+  </div>
+
+  <div class="row">
     <div>
       <label>Default minutes</label>
       <input id="defaultTeamMinutes" type="number" step="0.1" value="30" />
     </div>
+    <div></div>
   </div>
 
   <button id="loadRosterBtn">Load Roster</button>
@@ -107,8 +115,7 @@
   </table>
 </div>
 
-<!-- bump version if your browser caches: -->
-<script src="/static/main.js?v=6"></script>
+<!-- bump version when updating JS -->
+<script src="/static/main.js?v=7"></script>
 </body>
 </html>
-
