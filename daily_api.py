@@ -286,3 +286,7 @@ def projections_latest_csv():
     if not p.exists():
         return jsonify({"ok": False, "error": "No projections artifact yet"}), 404
     return send_file(str(p), mimetype="text/csv", as_attachment=True, download_name="projections_latest.csv")
+
+# Alias for compatibility with app.py
+daily_bp = bp
+
