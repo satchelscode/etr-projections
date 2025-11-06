@@ -1,92 +1,144 @@
-// static/daily.js
-(function(){
-  const $  = (s, r=document)=>r.querySelector(s);
-  const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+/* static/daily.js
+   UI logic for:
+   - Uploading an ETR CSV to /api/daily/upload
+   - Listing the upload library from /api/daily/library
+   - (Optional) quick link to projections artifact
+*/
 
-  async function uploadDaily() {
-    const file = $('#daily-file')?.files?.[0];
-    const date = $('#daily-date')?.value || '';
-    const status = $('#daily-status');
+;(function () {
+  // ---------- UTIL ----------
+  function $(sel) { return document.querySelector(sel); }
+  function el(tag, html) { const e = document.createElement(tag); e.innerHTML = html; return e; }
 
-    if (!file) { if(status) status.textContent = 'Choose a CSV file first.'; return; }
-    if (status) status.textContent = 'Uploading & retraining…';
+  async function jsonFetch(url, opts) {
+    const r = await fetch(url, opts);
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      // Allow plain text for CSV endpoints etc.
+      return { ok: r.ok, status: r.status, text: await r.text() };
+    }
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    return j;
+  }
 
-    const fd = new FormData();
-    fd.append('file', file);
-    if (date) fd.append('date', date);
+  // ---------- LIBRARY ----------
+  async function loadLibrary() {
+    const tbody = $("#upload-library-body");
+    const note = $("#upload-library-note");
+    if (tbody) tbody.innerHTML = "";
+    if (note)  note.textContent = "";
 
     try {
-      const resp = await fetch('/api/daily/upload', { method: 'POST', body: fd });
-      const ctype = resp.headers.get('content-type') || '';
-      let payload = null, text = '';
-      if (ctype.includes('application/json')) {
-        payload = await resp.json();
-      } else {
-        text = await resp.text();
-      }
+      const res = await jsonFetch("/api/daily/library");
 
-      if (!resp.ok) {
-        if (payload && payload.error) {
-          if (status) status.textContent = `Error ${resp.status}: ${payload.error}`;
-        } else {
-          if (status) status.textContent = `Error ${resp.status}${text ? `: ${text.slice(0,200)}` : ''}`;
+      // Accept any of these shapes
+      const rows =
+        res.items ||
+        res.data  ||
+        res.rows  ||
+        res.list  ||
+        Array.isArray(res) ? res : [];
+
+      if (!rows.length) {
+        if (tbody) {
+          tbody.innerHTML = `<tr><td colspan="3" style="padding:10px;color:#666">No uploads found yet.</td></tr>`;
+        } else if (note) {
+          note.textContent = "No uploads found yet.";
         }
         return;
       }
 
-      if (!payload || !payload.ok) {
-        if (status) status.textContent = `Error: ${(payload && payload.error) ? payload.error : 'Upload failed'}`;
+      if (tbody) {
+        for (const row of rows) {
+          const date = row.date || "";
+          const size = row.size || (row.size_kb != null ? `${row.size_kb} KB` : "");
+          const href = row.download || row.href || row.url || row.download_url || "#";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${date}</td>
+            <td>${size}</td>
+            <td><a href="${href}" target="_blank" rel="noopener noreferrer">Download</a></td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+    } catch (err) {
+      console.error("loadLibrary error:", err);
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="3" style="padding:10px;color:#b00">Failed to load upload history.</td></tr>`;
+      } else if (note) {
+        note.textContent = "Failed to load upload history.";
+      }
+    }
+  }
+
+  // ---------- UPLOAD ----------
+  async function wireUpload() {
+    const form = $("#etr-upload-form");
+    const fileInput = $("#etr-file");
+    const dateInput = $("#etr-date");
+    const btn = $("#upload-btn");
+    const status = $("#upload-status");
+
+    if (!form || !fileInput || !dateInput || !btn) return;
+
+    // default date = today if empty
+    if (!dateInput.value) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth()+1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      dateInput.value = `${y}-${m}-${d}`;
+    }
+
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (!fileInput.files || fileInput.files.length === 0) {
+        if (status) status.textContent = "Please choose a CSV file first.";
         return;
       }
+      const fd = new FormData();
+      fd.append("file", fileInput.files[0]);
+      fd.append("date", dateInput.value);
 
-      if (status) status.textContent = `OK — Uploaded ${payload.added_rows} rows for ${payload.date} and retrained artifacts.`;
-      // refresh the library list
-      loadDailyLibrary();
-    } catch (e) {
-      if (status) status.textContent = 'Network error.';
-    }
+      btn.disabled = true;
+      if (status) status.textContent = "Uploading & retraining…";
+
+      try {
+        const res = await jsonFetch("/api/daily/upload", {
+          method: "POST",
+          body: fd
+        });
+
+        const rows = res.rows_uploaded ?? res.rows ?? res.uploaded_rows ?? "N";
+        if (status) status.textContent = `OK — Uploaded ${rows} rows for ${res.date} and retrained artifacts.`;
+
+        // refresh library after a successful upload
+        await loadLibrary();
+      } catch (err) {
+        console.error("upload error:", err);
+        if (status) status.textContent = `Upload failed: ${err.message || err}`;
+      } finally {
+        btn.disabled = false;
+        // clear file input for safety
+        if (fileInput) fileInput.value = "";
+      }
+    });
   }
 
-  async function loadDailyLibrary() {
-    const box = $('#daily-library');
-    if (!box) return;
-    box.innerHTML = 'Loading history…';
-    try {
-      const resp = await fetch('/api/daily/raw_list');
-      const data = await resp.json();
-      if (!data.ok) { box.textContent = data.error || 'Failed to load.'; return; }
-      if (!data.items.length) { box.textContent = 'No uploads yet.'; return; }
-
-      const rows = data.items.map(item => {
-        const sizeKB = Math.round(item.size_bytes / 102.4) / 10;
-        return `
-          <tr>
-            <td>${item.date}</td>
-            <td>${sizeKB.toLocaleString()} KB</td>
-            <td><a href="${item.download}">Download</a></td>
-          </tr>`;
-      }).join('');
-
-      box.innerHTML = `
-        <h4 style="margin:16px 0 8px;">Upload Library</h4>
-        <table style="width:100%; border-collapse: collapse;">
-          <thead>
-            <tr><th style="text-align:left;border-bottom:1px solid #ddd;padding:6px 0;">Date</th>
-                <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px 0;">Size</th>
-                <th style="text-align:left;border-bottom:1px solid #ddd;padding:6px 0;">File</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>`;
-    } catch (_) {
-      box.textContent = 'Failed to load upload history.';
-    }
+  // ---------- PROJECTIONS QUICK LINK (optional) ----------
+  function showProjectionsLink() {
+    const elLink = $("#projections-latest-link");
+    if (!elLink) return;
+    elLink.innerHTML =
+      `<a href="/api/daily/projections/latest.csv" target="_blank" rel="noopener noreferrer">Download latest projections CSV</a>`;
   }
 
-  function bind() {
-    const btn = document.getElementById('daily-upload-btn');
-    if (btn && !btn.__bound) { btn.__bound = true; btn.addEventListener('click', uploadDaily); }
-    loadDailyLibrary();
-  }
-
-  document.addEventListener('DOMContentLoaded', bind);
+  // ---------- INIT ----------
+  document.addEventListener("DOMContentLoaded", async () => {
+    await wireUpload();
+    await loadLibrary();
+    showProjectionsLink();
+  });
 })();
