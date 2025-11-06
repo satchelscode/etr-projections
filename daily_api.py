@@ -1,216 +1,288 @@
 # daily_api.py
-# Upload a daily ETR projections CSV, append to history (CSV), retrain artifacts.
-# Robust column resolver with aliases (Minutes/Min, PTS/Points, etc.). No parquet deps.
+# Upload a daily ETR projections CSV, append to history, and RETRAIN projections
+# Retrain uses ALL uploaded CSVs: player EMAs + opponent defensive multipliers.
+# Artifacts written to: data/artifacts/projections_latest.csv
 
 from __future__ import annotations
-import json, re, traceback, os
-from datetime import datetime, timezone
+import os, io, json, re, traceback
+from datetime import datetime
 from pathlib import Path
-from flask import Blueprint, request, jsonify, send_from_directory, abort
+from typing import List
 import pandas as pd
+from flask import Blueprint, request, jsonify, send_file
 
-daily_bp = Blueprint("daily", __name__)
+bp = Blueprint("daily_api", __name__)
 
-REPO = Path(__file__).resolve().parent
-DATA = REPO / "data"
-RAW  = DATA / "raw"
-MASTER = DATA / "master.csv"      # CSV (no pyarrow/fastparquet)
-ART  = REPO / "artifacts"
+# --------- CONFIG ----------
+DATA_DIR = Path("data")
+ART_DIR = DATA_DIR / "artifacts"
+HIST_CSV = DATA_DIR / "etr_history.csv"
+ART_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-RAW.mkdir(parents=True, exist_ok=True)
-DATA.mkdir(parents=True, exist_ok=True)
-ART.mkdir(parents=True, exist_ok=True)
+# Blend weights (adjust if you like)
+W_ETR = 0.60      # weight on latest uploaded ETR value
+W_CAL = 0.40      # weight on calibrated value (EMA * opp_adj)
+EMA_HALFLIFE = 10 # days; recency emphasis for EMA
 
-STATS = [
-    ("Points","PTS"),
-    ("Rebounds","REB"),
-    ("Assists","AST"),
-    ("Three Pointers Made","3PM"),
-    ("Steals","STL"),
-    ("Blocks","BLK"),
-    ("Turnovers","TO"),
-    ("PRA","PRA"),
-]
+# Required columns (we'll normalize aliases)
+REQ = {
+    "Player": ["player", "name"],
+    "Team": ["team"],
+    "Opp": ["opp", "opponent"],
+    "Minutes": ["minutes", "min", "mins"],
+    "PTS": ["pts", "points"],
+    "REB": ["reb", "rebs"],
+    "AST": ["ast", "assists"],
+    "3PM": ["3pm", "three_pm", "3pt_made", "3pt"],
+    "STL": ["stl", "steals"],
+    "BLK": ["blk", "blocks"],
+    "TO":  ["to", "tov", "turnovers"],
+    "PRA": ["pra"],
+}
 
-def _norm(s: str) -> str:
-    # normalize header names: lowercase, remove non-alnum
-    return re.sub(r"[^a-z0-9]+", "", str(s).strip().lower())
+STAT_COLS = ["PTS","REB","AST","3PM","STL","BLK","TO","PRA"]
 
-def _resolve_col(df: pd.DataFrame, target: str, aliases: list[str]) -> str:
-    want = _norm(target)
-    cols_norm = { _norm(c): c for c in df.columns }
-    if want in cols_norm:
-        return cols_norm[want]
-    for a in aliases:
-        na = _norm(a)
-        if na in cols_norm:
-            return cols_norm[na]
-    raise ValueError(f"Missing required column: {target}. Found columns: {list(df.columns)}")
+def _canonicalize_cols(df: pd.DataFrame) -> pd.DataFrame:
+    colmap = {}
+    lower = {c.lower(): c for c in df.columns}
+    for canon, aliases in REQ.items():
+        found = None
+        for a in [canon] + aliases:
+            if a.lower() in lower:
+                found = lower[a.lower()]
+                break
+        if found is None:
+            # allow missing non-core stats; core id columns must exist
+            if canon in ["Player","Team","Opp"]:
+                raise ValueError(f"Missing required column: {canon} (aliases: {aliases})")
+            else:
+                continue
+        colmap[found] = canon
+    out = df.rename(columns=colmap).copy()
+    # Ensure stat columns present (fill if missing)
+    for s in STAT_COLS:
+        if s not in out.columns:
+            out[s] = pd.NA
+    # Strip names/teams/opps
+    for c in ["Player","Team","Opp"]:
+        if c in out.columns:
+            out[c] = out[c].astype(str).str.strip()
+    return out
 
-def _norm_df(df: pd.DataFrame) -> pd.DataFrame:
-    # Accept "Minutes" or common variants
-    minutes_col = _resolve_col(df, "Minutes", ["Min", "mins", "MINS", "Minute", "MIN"])
+def _parse_date_str(s: str) -> str:
+    # Expect YYYY-MM-DD; accept common alternates
+    for fmt in ("%Y-%m-%d","%m/%d/%Y","%m-%d-%Y","%Y/%m/%d"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    # final attempt: today
+    return datetime.now().strftime("%Y-%m-%d")
 
-    req_map = {
-        "Player":  _resolve_col(df, "Player", []),
-        "Team":    _resolve_col(df, "Team", []),
-        "Opp":     _resolve_col(df, "Opp",  ["Opponent"]),
-        "Minutes": minutes_col,
+def _append_history(df_day: pd.DataFrame, day: str) -> None:
+    df_day = df_day.copy()
+    df_day["Date"] = day
+    # Keep only canonical/order
+    keep = ["Date","Player","Team","Opp","Minutes"] + STAT_COLS
+    df_day = df_day[[c for c in keep if c in df_day.columns]]
+    if HIST_CSV.exists():
+        df_prev = pd.read_csv(HIST_CSV)
+        df_all = pd.concat([df_prev, df_day], ignore_index=True)
+    else:
+        df_all = df_day
+    # de-dup within (Date, Player) keeping last
+    df_all = (df_all
+              .sort_values(["Date","Player"])
+              .drop_duplicates(["Date","Player"], keep="last"))
+    df_all.to_csv(HIST_CSV, index=False)
 
-        # ← updated aliases below
-        "PTS":     _resolve_col(df, "PTS",  ["Points"]),
-        "REB":     _resolve_col(df, "REB",  ["Rebounds"]),
-        "AST":     _resolve_col(df, "AST",  ["Assists"]),
-        "3PM":     _resolve_col(df, "3PM",  ["3pt", "3p", "threes", "three pointers made", "three_pointers_made"]),
-        "STL":     _resolve_col(df, "STL",  ["Steals"]),
-        "BLK":     _resolve_col(df, "BLK",  ["Blocks"]),
-        "TO":      _resolve_col(df, "TO",   ["TOV", "Turnovers"]),
-        "PRA":     _resolve_col(df, "PRA",  []),
-    }
+def _exponential_weights(dates: pd.Series) -> pd.Series:
+    # convert Date -> integer day index (0 oldest … n-1 newest)
+    d = pd.to_datetime(dates)
+    ranks = d.rank(method="dense").astype(int)
+    # newer date => bigger rank
+    # convert halflife to decay per rank step
+    # weight = 0.5 ** ((max_rank - rank)/halflife)
+    maxr = ranks.max()
+    decay = (0.5) ** ((maxr - ranks) / EMA_HALFLIFE)
+    return decay / decay.sum()
 
-    g = pd.DataFrame({k: df[v] for k, v in req_map.items()})
-
-    # normalize values
-    g["Player"] = g["Player"].astype(str).str.strip()
-    g["Team"]   = g["Team"].astype(str).str.upper().str.strip()
-    g["Opp"]    = g["Opp"].astype(str).str.upper().str.strip()
-    for k in ["Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA"]:
-        g[k] = pd.to_numeric(g[k], errors="coerce")
-    g = g[(g["Minutes"] > 0) & g["Player"].ne("")]
-    return g
-
-def _train_full_history(df: pd.DataFrame, min_minutes: float = 6.0):
-    df = df.copy()
-    df["Minutes"] = pd.to_numeric(df["Minutes"], errors="coerce")
-    df = df[(df["Minutes"] > 0) & df["Player"].ne("")]
-    if "Date" not in df.columns:
-        raise ValueError("History has no Date column after merge.")
+def _train_calibrations(df_hist: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """Build:
+       - player EMA per stat (Player -> stat -> value)
+       - opponent defensive multipliers per stat (Opp -> stat -> multiplier)
+    """
+    df = df_hist.copy()
+    df = df.dropna(subset=["Player"])
     df["Date"] = pd.to_datetime(df["Date"])
 
-    for stat_name, stat_col in STATS:
-        sub = df[df["Minutes"] >= min_minutes].copy()
-        base = stat_name.replace(" ", "_").lower()
-
-        if sub.empty:
-            pd.DataFrame({"Player": [], "rate_per_min": []}).to_csv(ART / f"model_player_rates_{base}.csv", index=False)
-            pd.DataFrame({"Opponent": [], "opp_adj": []}).to_csv(ART / f"model_opp_adj_{base}.csv", index=False)
-            (ART / f"model_meta_{base}.json").write_text(
-                json.dumps({"intercept": 0.0, "rows": 0, "as_of": datetime.now(timezone.utc).isoformat()}, indent=2),
-                encoding="utf-8",
-            )
+    # Player EMA
+    player_ema_rows = []
+    for stat in STAT_COLS:
+        if stat not in df.columns: continue
+        sub = df[["Date","Player",stat]].dropna(subset=[stat]).copy()
+        if sub.empty: 
             continue
+        # weights by date
+        sub["w"] = _exponential_weights(sub["Date"])
+        ema = sub.groupby("Player").apply(lambda g: (g[stat] * g["w"]).sum()).reset_index(name=stat)
+        ema["stat"] = stat
+        player_ema_rows.append(ema[["Player","stat",stat]])
+    player_ema = pd.DataFrame(columns=["Player","stat"]+STAT_COLS)
+    if player_ema_rows:
+        player_ema = pd.concat(player_ema_rows, ignore_index=True)
+    # pivot to wide: Player rows, stat columns
+    if not player_ema.empty:
+        player_ema_wide = player_ema.pivot(index="Player", columns="stat", values=player_ema.columns[-1]).reset_index().rename_axis(None, axis=1)
+    else:
+        player_ema_wide = pd.DataFrame(columns=["Player"]+STAT_COLS)
 
-        grp_p = sub.groupby("Player", as_index=False).agg(
-            stat_sum=(stat_col, "sum"),
-            min_sum=("Minutes","sum")
-        )
-        grp_p["rate_per_min"] = grp_p["stat_sum"] / grp_p["min_sum"]
-        rates = grp_p[["Player","rate_per_min"]].sort_values("Player")
+    # Opponent multipliers: for each stat, how “hard” is Opp relative to league average projection level?
+    # We use within-history ratios: player value vs league mean that day, aggregated by Opp.
+    opp_rows = []
+    for stat in STAT_COLS:
+        sub = df[["Date","Opp",stat]].dropna(subset=[stat]).copy()
+        if sub.empty: 
+            continue
+        # compute day-level mean, then ratio = value / day_mean
+        day_mean = sub.groupby("Date")[stat].transform("mean")
+        sub["ratio"] = sub[stat] / day_mean.replace(0, 1e-9)
+        # recency weight
+        sub["w"] = _exponential_weights(sub["Date"])
+        opp_mult = sub.groupby("Opp").apply(lambda g: (g["ratio"] * g["w"]).sum()).reset_index(name=stat)
+        opp_mult["stat"] = stat
+        opp_rows.append(opp_mult[["Opp","stat",stat]])
+    if opp_rows:
+        opp_mult_df = pd.concat(opp_rows, ignore_index=True)
+        opp_mult_wide = opp_mult_df.pivot(index="Opp", columns="stat", values=opp_mult_df.columns[-1]).reset_index().rename_axis(None, axis=1)
+        # normalize each stat so league avg = 1.0
+        for stat in STAT_COLS:
+            if stat in opp_mult_wide.columns:
+                m = opp_mult_wide[stat].mean()
+                if pd.notna(m) and m != 0:
+                    opp_mult_wide[stat] = opp_mult_wide[stat] / m
+    else:
+        opp_mult_wide = pd.DataFrame(columns=["Opp"]+STAT_COLS)
 
-        merged = sub.merge(rates, on="Player", how="left")
-        merged["pred0"]  = merged["rate_per_min"] * merged["Minutes"]
-        merged["resid0"] = merged[stat_col] - merged["pred0"]
-        intercept = float(merged["resid0"].mean())
+    # summary
+    summary = {
+        "rows_in_history": int(len(df)),
+        "distinct_players": int(df["Player"].nunique()),
+        "distinct_dates": int(df["Date"].nunique()),
+        "ema_halflife_days": EMA_HALFLIFE,
+        "blend": {"W_ETR": W_ETR, "W_CAL": W_CAL},
+    }
+    return player_ema_wide, opp_mult_wide, summary
 
-        merged["resid1"] = merged["resid0"] - intercept
-        opp_adj = (
-            merged.groupby("Opp", as_index=False)["resid1"]
-            .mean()
-            .rename(columns={"Opp":"Opponent","resid1":"opp_adj"})
-            .sort_values("Opponent")
-        )
+def _rebuild_latest_projections(df_hist: pd.DataFrame) -> pd.DataFrame:
+    # Take the most recent date in history as "current slate" to project
+    latest_date = pd.to_datetime(df_hist["Date"]).max()
+    today_df = df_hist[pd.to_datetime(df_hist["Date"]) == latest_date].copy()
 
-        rates.to_csv(ART / f"model_player_rates_{base}.csv", index=False)
-        opp_adj.to_csv(ART / f"model_opp_adj_{base}.csv", index=False)
-        (ART / f"model_meta_{base}.json").write_text(
-            json.dumps({"intercept": round(intercept,6), "rows": int(len(sub)), "as_of": datetime.now(timezone.utc).isoformat()}, indent=2),
-            encoding="utf-8",
-        )
+    player_ema, opp_mult, _ = _train_calibrations(df_hist)
 
-@daily_bp.get("/api/daily/status")
-def daily_status():
-    size = MASTER.stat().st_size if MASTER.exists() else 0
-    return jsonify({"ok": True, "has_master": MASTER.exists(), "master_bytes": size})
+    # Merge calibrations
+    base = today_df.merge(player_ema, on="Player", how="left", suffixes=("","_EMA"))
+    base = base.merge(opp_mult, on="Opp", how="left", suffixes=("","_OPP"))
 
-@daily_bp.get("/api/daily/raw_list")
-def daily_raw_list():
-    items = []
-    for p in RAW.glob("*.csv"):
-        name = p.name
-        # guess ISO date from filename YYYY-MM-DD.csv
-        date_guess = name.replace(".csv","")
-        try:
-            dt = datetime.fromisoformat(date_guess)
-            date_str = dt.strftime("%Y-%m-%d")
-        except Exception:
-            date_str = name
-        items.append({
-            "name": name,
-            "date": date_str,
-            "size_bytes": p.stat().st_size,
-            "download": f"/daily/raw/{name}",
-        })
-    # sort newest first by date then name
-    items.sort(key=lambda x: x["date"], reverse=True)
-    return jsonify({"ok": True, "items": items})
+    # For each stat: calibrated = EMA * opp_mult (fallbacks → latest ETR if missing)
+    out = base.copy()
+    for stat in STAT_COLS:
+        ema_col = stat  # from player_ema wide pivot, the stat name is the column
+        opp_col = stat  # from opp_mult wide pivot, same column name
+        ema_vals = out[f"{ema_col}"].where(out[f"{ema_col}"].notna(), out[stat])
+        opp_vals = out[f"{opp_col}"].where(out[f"{opp_col}"].notna(), 1.0)
+        cal = ema_vals * opp_vals
+        out[f"{stat}_CAL"] = cal
+        out[f"{stat}_FINAL"] = (W_ETR * out[stat].astype(float)) + (W_CAL * cal.astype(float))
 
-@daily_bp.get("/daily/raw/<path:fname>")
-def daily_raw_download(fname: str):
-    # basic safety
-    if "/" in fname or "\\" in fname or not fname.endswith(".csv"):
-        abort(404)
-    full = RAW / fname
-    if not full.exists():
-        abort(404)
-    return send_from_directory(RAW, fname, as_attachment=True)
+    # Output tidy frame
+    keep = ["Date","Player","Team","Opp","Minutes"] + [f"{s}_FINAL" for s in STAT_COLS]
+    out = out[keep].rename(columns={f"{s}_FINAL": s for s in STAT_COLS})
+    out = out.sort_values(["Team","Player"]).reset_index(drop=True)
+    out["Date"] = out["Date"].astype(str)
+    return out
 
-@daily_bp.post("/api/daily/upload")
-def daily_upload():
+# ---------------- ROUTES ----------------
+
+@bp.route("/api/daily/upload", methods=["POST"])
+def upload_and_retrain():
     try:
+        # 1) Parse input
         if "file" not in request.files:
-            return jsonify({"ok": False, "error": "Missing file"}), 400
-        date_str = (request.form.get("date") or "").strip() or datetime.now().strftime("%Y-%m-%d")
-
+            return jsonify({"ok": False, "error": "No file part 'file'"}), 400
         f = request.files["file"]
-        try:
-            df = pd.read_csv(f)
-            df = _norm_df(df)
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"CSV parse error: {e}"}), 400
+        if not f.filename:
+            return jsonify({"ok": False, "error": "No selected file"}), 400
+        date_str = (request.form.get("date") or "").strip()
+        day = _parse_date_str(date_str) if date_str else datetime.now().strftime("%Y-%m-%d")
 
-        df["Date"] = pd.to_datetime(date_str).normalize()
+        # 2) Read CSV
+        raw = pd.read_csv(io.BytesIO(f.read()))
+        df = _canonicalize_cols(raw)
 
-        # save raw
-        out_raw = RAW / f"{date_str}.csv"
-        df.to_csv(out_raw, index=False)
+        # 3) Append to history
+        _append_history(df, day)
 
-        # append to master CSV
-        if MASTER.exists():
-            m = pd.read_csv(MASTER)
-            # ensure expected columns exist when merging
-            for col in ["Player","Team","Opp","Minutes","PTS","REB","AST","3PM","STL","BLK","TO","PRA","Date"]:
-                if col not in m.columns:
-                    m[col] = pd.Series(dtype=df[col].dtype if col in df.columns else "float64")
-            m = pd.concat([m, df], ignore_index=True)
-        else:
-            m = df.copy()
+        # 4) Retrain using ALL history
+        df_hist = pd.read_csv(HIST_CSV)
+        latest = _rebuild_latest_projections(df_hist)
 
-        # de-dup by (Date, Player, Opp)
-        m["Date"] = pd.to_datetime(m["Date"])
-        m = m.sort_values(["Date","Player","Opp"]).drop_duplicates(subset=["Date","Player","Opp"], keep="last")
-        m.to_csv(MASTER, index=False)
+        # 5) Write artifacts
+        ART_DIR.mkdir(parents=True, exist_ok=True)
+        latest_path = ART_DIR / "projections_latest.csv"
+        latest.to_csv(latest_path, index=False)
 
-        # retrain
-        _train_full_history(m)
+        # calibration summary
+        _, _, summary = _train_calibrations(df_hist)
+        (ART_DIR / "calibration_summary.json").write_text(json.dumps(summary, indent=2))
 
         return jsonify({
             "ok": True,
-            "date": date_str,
-            "added_rows": int(len(df)),
-            "master_rows": int(len(m)),
-            "message": f"Uploaded {len(df)} rows for {date_str} and retrained artifacts."
+            "date": day,
+            "rows_uploaded": len(df),
+            "history_rows": int(len(df_hist)),
+            "artifacts": {
+                "projections_latest_csv": str(latest_path),
+                "calibration_summary_json": str(ART_DIR / "calibration_summary.json"),
+            }
         })
-
     except Exception as e:
-        tb = traceback.format_exc(limit=2)
-        return jsonify({"ok": False, "error": f"Internal error: {e}", "trace": tb}), 500
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+
+@bp.route("/api/daily/library", methods=["GET"])
+def list_library():
+    if not HIST_CSV.exists():
+        return jsonify({"ok": True, "items": []})
+    df = pd.read_csv(HIST_CSV)
+    df["Date"] = pd.to_datetime(df["Date"])
+    sizes = (df.groupby("Date").size().reset_index(name="rows")
+             .sort_values("Date", ascending=False))
+    items = []
+    for _, r in sizes.iterrows():
+        items.append({
+            "date": r["Date"].strftime("%Y-%m-%d"),
+            "rows": int(r["rows"])
+        })
+    return jsonify({"ok": True, "items": items})
+
+@bp.route("/api/daily/download/<date_str>", methods=["GET"])
+def download_daily(date_str: str):
+    if not HIST_CSV.exists():
+        return jsonify({"ok": False, "error": "No history"}), 404
+    df = pd.read_csv(HIST_CSV)
+    out = df[df["Date"] == date_str]
+    if out.empty:
+        return jsonify({"ok": False, "error": f"No entries for date {date_str}"}), 404
+    bio = io.BytesIO()
+    out.to_csv(bio, index=False)
+    bio.seek(0)
+    return send_file(bio, mimetype="text/csv", as_attachment=True, download_name=f"etr_{date_str}.csv")
+
+@bp.route("/api/daily/projections/latest.csv", methods=["GET"])
+def projections_latest_csv():
+    p = ART_DIR / "projections_latest.csv"
+    if not p.exists():
+        return jsonify({"ok": False, "error": "No projections artifact yet"}), 404
+    return send_file(str(p), mimetype="text/csv", as_attachment=True, download_name="projections_latest.csv")
