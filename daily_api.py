@@ -1,29 +1,29 @@
 # daily_api.py
-# Upload daily ETR CSVs, keep persistent history, retrain from ALL dates each time,
-# expose a library response compatible with the existing UI (tolerant keys).
+# Persistent ETR history + retrain from ALL dates + UI-compatible library + diagnostics.
 
 from __future__ import annotations
 import os, io, json, traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict, Any
 import pandas as pd
 from flask import Blueprint, request, jsonify, send_file
 
 bp = Blueprint("daily_api", __name__)
 
 # --------- STORAGE (Render Disk compatible) ----------
-# If you attach a Render Disk, set DATA_DIR=/var/data ; otherwise defaults to ./data
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+# IMPORTANT: Set DATA_DIR=/var/data in Render → Environment.
+DATA_DIR = Path(os.environ.get("DATA_DIR", "data")).resolve()
 ART_DIR  = DATA_DIR / "artifacts"
 HIST_CSV = DATA_DIR / "etr_history.csv"
+# Ensure dirs exist
 ART_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # --------- MODEL BLEND / TUNABLES ----------
-W_ETR = 0.60      # weight on latest uploaded ETR value
+W_ETR = 0.60      # weight on latest ETR value
 W_CAL = 0.40      # weight on calibrated value (EMA * opponent multiplier)
-EMA_HALFLIFE = 10 # days; recency emphasis for EMA
+EMA_HALFLIFE = 10 # days; recency emphasis
 
 # Canonical columns & acceptable aliases
 REQ = {
@@ -80,11 +80,13 @@ def _append_history(df_day: pd.DataFrame, day: str) -> None:
     df_day["Date"] = day
     keep = ["Date","Player","Team","Opp","Minutes"] + STAT_COLS
     df_day = df_day[[c for c in keep if c in df_day.columns]]
+
     if HIST_CSV.exists():
         df_prev = pd.read_csv(HIST_CSV)
         df_all  = pd.concat([df_prev, df_day], ignore_index=True)
     else:
         df_all  = df_day
+
     df_all = (df_all
               .sort_values(["Date","Player"])
               .drop_duplicates(["Date","Player"], keep="last"))
@@ -119,7 +121,7 @@ def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     else:
         player_ema_wide = pd.DataFrame(columns=["Player"]+STAT_COLS)
 
-    # Opponent multipliers (relative difficulty)
+    # Opponent multipliers
     opp_rows = []
     for stat in STAT_COLS:
         sub = df[["Date","Opp",stat]].dropna(subset=[stat]).copy()
@@ -203,13 +205,12 @@ def upload_and_retrain():
         (ART_DIR / "calibration_summary.json").write_text(json.dumps(summary, indent=2))
 
         rows_uploaded = int(len(df))
-        # Include multiple alias keys so your front-end always finds one
         return jsonify({
             "ok": True,
             "date": day,
             "rows_uploaded": rows_uploaded,
-            "rows": rows_uploaded,
-            "uploaded_rows": rows_uploaded,
+            "rows": rows_uploaded,             # UI compatibility
+            "uploaded_rows": rows_uploaded,    # UI compatibility
             "history_rows": int(len(df_hist)),
             "artifacts": {
                 "projections_latest_csv": str(latest_path),
@@ -238,18 +239,18 @@ def list_library():
             items.append({
                 "date": date_str,
                 "size_kb": kb,
-                "size": f"{kb} KB",    # UI often shows this
-                # Provide multiple link keys so any previous JS works:
+                "size": f"{kb} KB",
                 "file": "Download",
-                "download": link,
-                "href": link,
-                "url": link,
-                "download_url": link,
+                "download": link,       # common key
+                "href": link,           # safety
+                "url": link,            # safety
+                "download_url": link,   # safety
             })
         items.sort(key=lambda x: x["date"], reverse=True)
-        return jsonify({"ok": True, "count": len(items), "items": items, "rows": items, "data": items, "list": items})
+        # include several aliases so any frontend parser finds it
+        return jsonify({"ok": True, "items": items, "data": items, "rows": items, "list": items, "count": len(items)})
     except Exception as e:
-        # Never 500 the UI; return empty list with error note
+        # Never break the UI; return empty with a note
         return jsonify({"ok": True, "items": [], "note": f"library_error: {e}"}), 200
 
 @bp.route("/api/daily/download/<date_str>", methods=["GET"])
@@ -269,6 +270,43 @@ def projections_latest_csv():
     if not p.exists():
         return jsonify({"ok": False, "error": "No projections artifact yet"}), 404
     return send_file(str(p), mimetype="text/csv", as_attachment=True, download_name="projections_latest.csv")
+
+# ---------- Diagnostics ----------
+@bp.route("/api/daily/health", methods=["GET"])
+def health():
+    """Quick sanity: shows where we’re writing, and whether history/artifacts exist."""
+    hist_exists = HIST_CSV.exists()
+    latest_exists = (ART_DIR / "projections_latest.csv").exists()
+    out: Dict[str, Any] = {
+        "ok": True,
+        "DATA_DIR": str(DATA_DIR),
+        "HIST_CSV": str(HIST_CSV),
+        "ART_DIR": str(ART_DIR),
+        "history_exists": hist_exists,
+        "projections_latest_exists": latest_exists,
+    }
+    if hist_exists:
+        try:
+            df = pd.read_csv(HIST_CSV)
+            dates = sorted(pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d").unique().tolist())
+            out["history_dates_last_5"] = dates[-5:]
+            out["history_rows_total"] = int(len(df))
+        except Exception as e:
+            out["history_read_error"] = str(e)
+    return jsonify(out)
+
+@bp.route("/api/daily/debug", methods=["GET"])
+def debug_list_files():
+    """Lists files under DATA_DIR for quick visibility on Render."""
+    try:
+        data_listing = []
+        for p in sorted(DATA_DIR.glob("**/*")):
+            if p.is_file():
+                rel = p.relative_to(DATA_DIR)
+                data_listing.append(str(rel))
+        return jsonify({"ok": True, "DATA_DIR": str(DATA_DIR), "files": data_listing})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # Back-compat for app.py
 daily_bp = bp
