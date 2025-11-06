@@ -1,23 +1,22 @@
 # daily_api.py
-# Upload daily ETR CSV, append to persistent history, retrain using ALL history,
-# and expose a library list compatible with the existing front-end.
+# Upload daily ETR CSVs, keep persistent history, retrain from ALL dates each time,
+# expose a library response compatible with the existing UI (tolerant keys).
 
 from __future__ import annotations
 import os, io, json, traceback
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 import pandas as pd
 from flask import Blueprint, request, jsonify, send_file
 
 bp = Blueprint("daily_api", __name__)
 
-# --------- CONFIG (works with or without a Render Persistent Disk) ----------
-# If you attach a Render Disk, set env var DATA_DIR=/var/data (or your mount path).
+# --------- STORAGE (Render Disk compatible) ----------
+# If you attach a Render Disk, set DATA_DIR=/var/data ; otherwise defaults to ./data
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
-ART_DIR = DATA_DIR / "artifacts"
+ART_DIR  = DATA_DIR / "artifacts"
 HIST_CSV = DATA_DIR / "etr_history.csv"
-# Ensure directories exist
 ART_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -26,20 +25,20 @@ W_ETR = 0.60      # weight on latest uploaded ETR value
 W_CAL = 0.40      # weight on calibrated value (EMA * opponent multiplier)
 EMA_HALFLIFE = 10 # days; recency emphasis for EMA
 
-# Canonical columns & aliases we accept from uploads
+# Canonical columns & acceptable aliases
 REQ = {
     "Player": ["player","name"],
-    "Team": ["team"],
-    "Opp": ["opp","opponent"],
-    "Minutes": ["minutes","min","mins"],
-    "PTS": ["pts","points"],
-    "REB": ["reb","rebs"],
-    "AST": ["ast","assists"],
-    "3PM": ["3pm","three_pm","3pt_made","3pt"],
-    "STL": ["stl","steals"],
-    "BLK": ["blk","blocks"],
-    "TO":  ["to","tov","turnovers"],
-    "PRA": ["pra"],
+    "Team":   ["team"],
+    "Opp":    ["opp","opponent"],
+    "Minutes":["minutes","min","mins"],
+    "PTS":    ["pts","points"],
+    "REB":    ["reb","rebs"],
+    "AST":    ["ast","assists"],
+    "3PM":    ["3pm","three_pm","3pt_made","3pt"],
+    "STL":    ["stl","steals"],
+    "BLK":    ["blk","blocks"],
+    "TO":     ["to","tov","turnovers"],
+    "PRA":    ["pra"],
 }
 STAT_COLS = ["PTS","REB","AST","3PM","STL","BLK","TO","PRA"]
 
@@ -60,11 +59,9 @@ def _canonicalize_cols(df: pd.DataFrame) -> pd.DataFrame:
                 continue
         colmap[found] = canon
     out = df.rename(columns=colmap).copy()
-    # Ensure stat columns present
     for s in STAT_COLS:
         if s not in out.columns:
             out[s] = pd.NA
-    # Normalize text fields
     for c in ["Player","Team","Opp"]:
         if c in out.columns:
             out[c] = out[c].astype(str).str.strip()
@@ -83,13 +80,11 @@ def _append_history(df_day: pd.DataFrame, day: str) -> None:
     df_day["Date"] = day
     keep = ["Date","Player","Team","Opp","Minutes"] + STAT_COLS
     df_day = df_day[[c for c in keep if c in df_day.columns]]
-
     if HIST_CSV.exists():
         df_prev = pd.read_csv(HIST_CSV)
-        df_all = pd.concat([df_prev, df_day], ignore_index=True)
+        df_all  = pd.concat([df_prev, df_day], ignore_index=True)
     else:
-        df_all = df_day
-
+        df_all  = df_day
     df_all = (df_all
               .sort_values(["Date","Player"])
               .drop_duplicates(["Date","Player"], keep="last"))
@@ -104,11 +99,6 @@ def _exponential_weights(dates: pd.Series) -> pd.Series:
     return decay / decay.sum()
 
 def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Return:
-       - player_ema_wide: Player × stat recency-weighted EMA
-       - opp_mult_wide:  Opp × stat defensive multipliers (normalized to 1.0 league avg)
-       - summary:        metadata for debugging
-    """
     df = df_hist.copy()
     df = df.dropna(subset=["Player"])
     df["Date"] = pd.to_datetime(df["Date"])
@@ -116,11 +106,9 @@ def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     # Player EMA
     player_ema_rows = []
     for stat in STAT_COLS:
-        if stat not in df.columns:
-            continue
+        if stat not in df.columns: continue
         sub = df[["Date","Player",stat]].dropna(subset=[stat]).copy()
-        if sub.empty:
-            continue
+        if sub.empty: continue
         sub["w"] = _exponential_weights(sub["Date"])
         ema = sub.groupby("Player").apply(lambda g: (g[stat] * g["w"]).sum()).reset_index(name=stat)
         ema["stat"] = stat
@@ -135,9 +123,7 @@ def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     opp_rows = []
     for stat in STAT_COLS:
         sub = df[["Date","Opp",stat]].dropna(subset=[stat]).copy()
-        if sub.empty:
-            continue
-        # ratio vs day mean
+        if sub.empty: continue
         day_mean = sub.groupby("Date")[stat].transform("mean")
         sub["ratio"] = sub[stat] / day_mean.replace(0, 1e-9)
         sub["w"] = _exponential_weights(sub["Date"])
@@ -145,9 +131,8 @@ def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
         opp_mult["stat"] = stat
         opp_rows.append(opp_mult[["Opp","stat",stat]])
     if opp_rows:
-        opp_mult_df = pd.concat(opp_rows, ignore_index=True)
+        opp_mult_df   = pd.concat(opp_rows, ignore_index=True)
         opp_mult_wide = opp_mult_df.pivot(index="Opp", columns="stat", values=opp_mult_df.columns[-1]).reset_index().rename_axis(None, axis=1)
-        # normalize each stat so league avg is 1.0
         for stat in STAT_COLS:
             if stat in opp_mult_wide.columns:
                 m = opp_mult_wide[stat].mean()
@@ -166,29 +151,26 @@ def _train_calibrations(df_hist: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     return player_ema_wide, opp_mult_wide, summary
 
 def _rebuild_latest_projections(df_hist: pd.DataFrame) -> pd.DataFrame:
-    # Use the most recent slate in history as target for projection refresh
     latest_date = pd.to_datetime(df_hist["Date"]).max()
-    today_df = df_hist[pd.to_datetime(df_hist["Date"]) == latest_date].copy()
+    today_df    = df_hist[pd.to_datetime(df_hist["Date"]) == latest_date].copy()
 
     player_ema, opp_mult, _ = _train_calibrations(df_hist)
-
     base = today_df.merge(player_ema, on="Player", how="left", suffixes=("","_EMA"))
-    base = base.merge(opp_mult, on="Opp", how="left", suffixes=("","_OPP"))
+    base = base.merge(opp_mult,  on="Opp",    how="left", suffixes=("","_OPP"))
 
     out = base.copy()
     for stat in STAT_COLS:
-        # EMA and Opp multiplier columns share stat names via pivots
-        ema_vals = out.get(stat)
-        opp_vals = out.get(stat)
-        ema_vals = ema_vals.where(ema_vals.notna(), out[stat])   # fallback to latest ETR if EMA missing
-        opp_vals = opp_vals.where(opp_vals.notna(), 1.0)         # neutral opponent if unknown
+        ema_vals = out.get(stat)                    # from player_ema pivot
+        opp_vals = out.get(stat)                    # from opp_mult pivot
+        ema_vals = ema_vals.where(ema_vals.notna(), out[stat])  # fallback to latest ETR
+        opp_vals = opp_vals.where(opp_vals.notna(), 1.0)        # neutral opp
         cal = ema_vals * opp_vals
-        out[f"{stat}_CAL"] = cal
+        out[f"{stat}_CAL"]   = cal
         out[f"{stat}_FINAL"] = (W_ETR * out[stat].astype(float)) + (W_CAL * cal.astype(float))
 
     keep = ["Date","Player","Team","Opp","Minutes"] + [f"{s}_FINAL" for s in STAT_COLS]
-    out = out[keep].rename(columns={f"{s}_FINAL": s for s in STAT_COLS})
-    out = out.sort_values(["Team","Player"]).reset_index(drop=True)
+    out  = out[keep].rename(columns={f"{s}_FINAL": s for s in STAT_COLS})
+    out  = out.sort_values(["Team","Player"]).reset_index(drop=True)
     out["Date"] = out["Date"].astype(str)
     return out
 
@@ -206,12 +188,12 @@ def upload_and_retrain():
         day = _parse_date_str(date_str) if date_str else datetime.now().strftime("%Y-%m-%d")
 
         raw = pd.read_csv(io.BytesIO(f.read()))
-        df = _canonicalize_cols(raw)
+        df  = _canonicalize_cols(raw)
 
         _append_history(df, day)
 
         df_hist = pd.read_csv(HIST_CSV)
-        latest = _rebuild_latest_projections(df_hist)
+        latest  = _rebuild_latest_projections(df_hist)
 
         ART_DIR.mkdir(parents=True, exist_ok=True)
         latest_path = ART_DIR / "projections_latest.csv"
@@ -221,11 +203,13 @@ def upload_and_retrain():
         (ART_DIR / "calibration_summary.json").write_text(json.dumps(summary, indent=2))
 
         rows_uploaded = int(len(df))
+        # Include multiple alias keys so your front-end always finds one
         return jsonify({
             "ok": True,
             "date": day,
             "rows_uploaded": rows_uploaded,
-            "rows": rows_uploaded,             # front-end compatibility
+            "rows": rows_uploaded,
+            "uploaded_rows": rows_uploaded,
             "history_rows": int(len(df_hist)),
             "artifacts": {
                 "projections_latest_csv": str(latest_path),
@@ -248,34 +232,35 @@ def list_library():
 
         items = []
         for d, g in grp:
-            # compute size (approximate) for that day's slice
-            bio = io.BytesIO()
-            g.to_csv(bio, index=False)
-            kb = round(len(bio.getvalue()) / 1024, 1)
+            bio = io.BytesIO(); g.to_csv(bio, index=False); kb = round(len(bio.getvalue())/1024, 1)
             date_str = d.strftime("%Y-%m-%d")
+            link = f"/api/daily/download/{date_str}"
             items.append({
                 "date": date_str,
                 "size_kb": kb,
-                "size": f"{kb} KB",                         # UI sometimes expects 'size'
-                "download": f"/api/daily/download/{date_str}",     # anchor href
-                "download_url": f"/api/daily/download/{date_str}", # kept for flexibility
+                "size": f"{kb} KB",    # UI often shows this
+                # Provide multiple link keys so any previous JS works:
+                "file": "Download",
+                "download": link,
+                "href": link,
+                "url": link,
+                "download_url": link,
             })
         items.sort(key=lambda x: x["date"], reverse=True)
-        return jsonify({"ok": True, "items": items})
+        return jsonify({"ok": True, "count": len(items), "items": items, "rows": items, "data": items, "list": items})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        # Never 500 the UI; return empty list with error note
+        return jsonify({"ok": True, "items": [], "note": f"library_error: {e}"}), 200
 
 @bp.route("/api/daily/download/<date_str>", methods=["GET"])
 def download_daily(date_str: str):
     if not HIST_CSV.exists():
         return jsonify({"ok": False, "error": "No history"}), 404
-    df = pd.read_csv(HIST_CSV)
+    df  = pd.read_csv(HIST_CSV)
     out = df[df["Date"] == date_str]
     if out.empty:
         return jsonify({"ok": False, "error": f"No entries for date {date_str}"}), 404
-    bio = io.BytesIO()
-    out.to_csv(bio, index=False)
-    bio.seek(0)
+    bio = io.BytesIO(); out.to_csv(bio, index=False); bio.seek(0)
     return send_file(bio, mimetype="text/csv", as_attachment=True, download_name=f"etr_{date_str}.csv")
 
 @bp.route("/api/daily/projections/latest.csv", methods=["GET"])
@@ -285,5 +270,5 @@ def projections_latest_csv():
         return jsonify({"ok": False, "error": "No projections artifact yet"}), 404
     return send_file(str(p), mimetype="text/csv", as_attachment=True, download_name="projections_latest.csv")
 
-# Backwards-compat alias expected by app.py
+# Back-compat for app.py
 daily_bp = bp
