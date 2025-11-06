@@ -5,8 +5,8 @@
   <title>ETR Projections</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; margin:0; color:#111; background:#fff; }
-    .wrap { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; margin:0; color:#111; }
+    .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
     .tabs { display:flex; gap:28px; border-bottom:1px solid #eee; margin-bottom:20px; }
     .tab { padding:12px 0; cursor:pointer; font-weight:700; color:#555; }
     .tab.active { color:#111; border-bottom:2px solid #111; }
@@ -22,8 +22,6 @@
     .muted { color:#666; font-size:14px; }
     .right { text-align:right; }
     .pill { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; color:#555; }
-    .tight { margin: 6px 0; }
-    .subtle { color:#999; }
   </style>
 </head>
 <body>
@@ -33,7 +31,7 @@
       <div id="tab-daily" class="tab">Daily ETR Models</div>
     </div>
 
-    <!-- ======================= PROJECTIONS (MAIN) ======================= -->
+    <!-- ======================= PROJECTIONS ======================= -->
     <div id="sec-proj" class="section active">
       <div class="card">
         <h3 style="margin-top:0">Single Player Projections</h3>
@@ -43,35 +41,22 @@
           <select id="filter-opp"><option value="">All opponents</option></select>
           <select id="filter-stat">
             <option value="">All stats</option>
-            <option value="PTS">PTS</option>
-            <option value="REB">REB</option>
-            <option value="AST">AST</option>
-            <option value="3PM">3PM</option>
-            <option value="STL">STL</option>
-            <option value="BLK">BLK</option>
-            <option value="TO">TO</option>
-            <option value="PRA">PRA</option>
+            <option value="PTS">PTS</option><option value="REB">REB</option>
+            <option value="AST">AST</option><option value="3PM">3PM</option>
+            <option value="STL">STL</option><option value="BLK">BLK</option>
+            <option value="TO">TO</option><option value="PRA">PRA</option>
           </select>
           <span class="pill" id="proj-date-pill">Date: –</span>
-          <span class="muted">Source: latest blended artifact</span>
-          <span class="muted"><a id="download-latest" href="/api/daily/projections/latest.csv" target="_blank" rel="noopener">Download CSV</a></span>
+          <span class="muted">Source: latest blended artifact • <a id="download-latest" href="/api/daily/projections/latest.csv" target="_blank" rel="noopener">Download CSV</a></span>
         </div>
-        <div class="tight subtle" id="player-count"></div>
-        <table id="players-table">
+        <div id="player-count" class="muted"></div>
+        <table>
           <thead>
             <tr>
-              <th>Player</th>
-              <th>Team</th>
-              <th>Opp</th>
-              <th class="right">Min</th>
-              <th class="right">PTS</th>
-              <th class="right">REB</th>
-              <th class="right">AST</th>
-              <th class="right">3PM</th>
-              <th class="right">STL</th>
-              <th class="right">BLK</th>
-              <th class="right">TO</th>
-              <th class="right">PRA</th>
+              <th>Player</th><th>Team</th><th>Opp</th><th class="right">Min</th>
+              <th class="right">PTS</th><th class="right">REB</th><th class="right">AST</th>
+              <th class="right">3PM</th><th class="right">STL</th><th class="right">BLK</th>
+              <th class="right">TO</th><th class="right">PRA</th>
             </tr>
           </thead>
           <tbody id="players-tbody"></tbody>
@@ -84,18 +69,13 @@
           <select id="filter-team-agg"><option value="">All teams</option></select>
           <span class="muted">Sum of player projections by team.</span>
         </div>
-        <table id="teams-table">
+        <table>
           <thead>
             <tr>
               <th>Team</th>
-              <th class="right">PTS</th>
-              <th class="right">REB</th>
-              <th class="right">AST</th>
-              <th class="right">3PM</th>
-              <th class="right">STL</th>
-              <th class="right">BLK</th>
-              <th class="right">TO</th>
-              <th class="right">PRA</th>
+              <th class="right">PTS</th><th class="right">REB</th><th class="right">AST</th>
+              <th class="right">3PM</th><th class="right">STL</th><th class="right">BLK</th>
+              <th class="right">TO</th><th class="right">PRA</th>
             </tr>
           </thead>
           <tbody id="teams-tbody"></tbody>
@@ -103,23 +83,23 @@
       </div>
     </div>
 
-    <!-- ======================= DAILY ETR MODELS (UPLOADS) ======================= -->
+    <!-- ======================= DAILY ETR MODELS ======================= -->
     <div id="sec-daily" class="section">
       <div class="card">
         <h3 style="margin-top:0">Daily ETR Models</h3>
-        <p class="muted">Drop today’s ETR projection CSV (columns: Player, Team, Opp, Minutes, PTS, REB, AST, 3PM, STL, BLK, TO, PRA). We’ll append it to history and retrain artifacts using <strong>all</strong> uploads.</p>
+        <p class="muted">Upload today’s ETR CSV (Player, Team, Opp, Minutes, PTS, REB, AST, 3PM, STL, BLK, TO, PRA). We’ll append to history and retrain using <b>all</b> uploads.</p>
 
         <form id="etr-upload-form">
           <div class="row">
-            <label for="etr-file"><strong>CSV file</strong></label>
+            <label for="etr-file"><b>CSV file</b></label>
             <input id="etr-file" name="file" type="file" accept=".csv" />
           </div>
           <div class="row">
-            <label for="etr-date"><strong>Date (YYYY-MM-DD)</strong></label>
+            <label for="etr-date"><b>Date (YYYY-MM-DD)</b></label>
             <input id="etr-date" name="date" type="date" />
           </div>
           <div class="row">
-            <button id="upload-btn" type="button">Upload &amp; Retrain</button>
+            <button id="upload-btn" type="submit">Upload &amp; Retrain</button>
             <span id="upload-status" class="muted"></span>
           </div>
         </form>
@@ -130,11 +110,7 @@
         <p id="upload-library-note" class="muted"></p>
         <table>
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Size</th>
-              <th>File</th>
-            </tr>
+            <tr><th>Date</th><th>Size</th><th>File</th></tr>
           </thead>
           <tbody id="upload-library-body"></tbody>
         </table>
@@ -143,7 +119,7 @@
   </div>
 
   <script>
-    // simple tabs
+    // tabs
     (function () {
       const tabProj = document.getElementById("tab-proj");
       const tabDaily = document.getElementById("tab-daily");
@@ -162,4 +138,3 @@
   <script src="/static/daily.js"></script>
 </body>
 </html>
-
