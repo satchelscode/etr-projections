@@ -1,0 +1,162 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  background: #0d1117;
+  color: #f0f6fc;
+}
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+  color: #58a6ff;
+}
+
+section {
+  border: 1px solid rgba(88, 166, 255, 0.25);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  background: rgba(22, 27, 34, 0.8);
+  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.45);
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+input,
+select,
+button,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(110, 118, 129, 0.4);
+  background: rgba(13, 17, 23, 0.8);
+  color: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+button:focus,
+textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.25);
+}
+
+button {
+  cursor: pointer;
+  font-weight: 600;
+  background: linear-gradient(135deg, #238636, #2ea043);
+  border: none;
+}
+
+button.secondary {
+  background: linear-gradient(135deg, #a371f7, #8250df);
+}
+
+button.danger {
+  background: linear-gradient(135deg, #f85149, #da3633);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #3a3f4b;
+}
+
+.status {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.75rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 960px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+a {
+  color: #58a6ff;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(56, 139, 253, 0.2);
+  margin-right: 0.4rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.flex {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+thead {
+  text-align: left;
+}
+
+th,
+td {
+  border-bottom: 1px solid rgba(88, 166, 255, 0.15);
+  padding: 0.4rem 0.5rem;
+}
+
+th {
+  color: #8ab4ff;
+  font-weight: 600;
+}
+
+.empty-hint {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #9ba1a6;
+}
+
+small {
+  display: block;
+  color: #9ba1a6;
+  margin-bottom: 0.75rem;
+}

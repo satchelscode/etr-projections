@@ -1,12 +1,16 @@
-from flask import Flask, jsonify
+"""Application entry point for the ETR projections service."""
+
+from flask import Flask, jsonify, render_template
+
 from daily_api_gpt import bp as gpt_bp
 
-app = Flask(__name__)
+
+app = Flask(__name__, static_folder="static", template_folder="templates")
 app.register_blueprint(gpt_bp, url_prefix="/api/gpt")
 
 @app.get("/")
 def index():
-    return "etr-projections API"
+    return render_template("index.html")
 
 @app.get("/api/health")
 def api_health():
