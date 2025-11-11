@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETR Projections Monitor</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const MonitoringDashboard = () => {
+          const [apiUrl, setApiUrl] = useState(window.location.origin);
+          const [metrics, setMetrics] = useState({
+            health: null,
+            latestModel: null,
+            catalog: null,
+            columnDebug: null,
+            lastCheck: null
+          });
+          const [loading, setLoading] = useState(false);
+          const [autoRefresh, setAutoRefresh] = useState(false);
+
+          const checkAllMetrics = async () => {
+            setLoading(true);
+            const timestamp = new Date().toLocaleTimeString();
+            const newMetrics = { lastCheck: timestamp };
+
+            try {
+              const healthRes = await fetch(`${apiUrl}/api/health`);
+              const healthData = await healthRes.json();
+              newMetrics.health = { status: healthRes.ok ? 'healthy' : 'down', data: healthData };
+            } catch (e) {
+              newMetrics.health = { status: 'error', error: e.message };
+            }
+
+            try {
+              const modelRes = await fetch(`${apiUrl}/api/gpt/models/latest`);
+              const modelData = await modelRes.json();
+              newMetrics.latestModel = modelData;
+            } catch (e) {
+              newMetrics.latestModel = { ok: false, error: e.message };
+            }
+
+            try {
+              const catalogRes = await fetch(`${apiUrl}/api/gpt/catalog`);
+              const catalogData = await catalogRes.json();
+              newMetrics.catalog = catalogData;
+            } catch (e) {
+              newMetrics.catalog = { ok: false, error: e.message };
+            }
+
+            try {
+              const colRes = await fetch(`${apiUrl}/api/gpt/debug/etr_columns`);
+              const colData = await colRes.json();
+              newMetrics.columnDebug = colData;
+            } catch (e) {
+              newMetrics.columnDebug = { ok: false, error: e.message };
+            }
+
+            setMetrics(newMetrics);
+            setLoading(false);
+          };
+
+          useEffect(() => {
+            if (autoRefresh) {
+              const interval = setInterval(checkAllMetrics, 60000);
+              return () => clearInterval(interval);
+            }
+          }, [autoRefresh, apiUrl]);
+
+          const StatusBadge = ({ ok, label }) => {
+            if (ok) {
+              return (
+                <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  ✓ {label || 'Healthy'}
+                </div>
+              );
+            }
+            return (
+              <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                ✗ {label || 'Error'}
+              </div>
+            );
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+                  
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h1 className="text-3xl font-bold text-white">ETR Meta-Model Monitor</h1>
+                      <p className="text-white/60 text-sm">Track your projection training pipeline</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-white bg-white/10 px-4 py-2 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={autoRefresh}
+                        onChange={(e) => setAutoRefresh(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      Auto-refresh (60s)
+                    </label>
+                  </div>
+
+                  <div className="mb-8 flex gap-3">
+                    <input
+                      type="text"
+                      value={apiUrl}
+                      onChange={(e) => setApiUrl(e.target.value)}
+                      placeholder="API URL"
+                      className="flex-1 px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <button
+                      onClick={checkAllMetrics}
+                      disabled={loading}
+                      className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 shadow-lg"
+                    >
+                      {loading ? 'Checking...' : 'Check All'}
+                    </button>
+                  </div>
+
+                  {metrics.lastCheck && (
+                    <div className="text-white/60 text-sm mb-6">
+                      Last checked: {metrics.lastCheck}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    
+                    <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur rounded-2xl p-6 border border-white/10 shadow-xl">
+                      <h2 className="text-xl font-semibold text-white mb-4">API Health</h2>
+                      {metrics.health ? (
+                        <div className="space-y-3">
+                          <StatusBadge ok={metrics.health.status === 'healthy'} />
+                          {metrics.health.error && (
+                            <p className="text-red-300 text-sm bg-red-500/10 p-3 rounded-lg">{metrics.health.error}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-white/50">Click "Check All" to monitor</p>
+                      )}
+                    </div>
+
+                    <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur rounded-2xl p-6 border border-white/10 shadow-xl">
+                      <h2 className="text-xl font-semibold text-white mb-4">Training Data</h2>
+                      {metrics.columnDebug ? (
+                        <div className="space-y-3">
+                          <StatusBadge ok={metrics.columnDebug.ok} />
+                          {metrics.columnDebug.ok && (
+                            <div className="mt-4 text-white/80 text-sm space-y-2">
+                              <p className="flex justify-between">
+                                <span>ETR Files:</span>
+                                <span className="font-bold text-blue-300">{metrics.columnDebug.files}</span>
+                              </p>
+                              <p className="flex justify-between">
+                                <span>Columns:</span>
+                                <span className="font-bold text-blue-300">{metrics.columnDebug.columns?.length || 0}</span>
+                              </p>
+                            </div>
+                          )}
+                          {metrics.columnDebug.error && (
+                            <p className="text-red-300 text-sm bg-red-500/10 p-3 rounded-lg">{metrics.columnDebug.error}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-white/50">Click "Check All" to monitor</p>
+                      )}
+                    </div>
+
+                    <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur rounded-2xl p-6 border border-white/10 shadow-xl">
+                      <h2 className="text-xl font-semibold text-white mb-4">Active Model</h2>
+                      {metrics.latestModel ? (
+                        <div className="space-y-3">
+                          <StatusBadge ok={metrics.latestModel.ok && metrics.latestModel.latest} label={metrics.latestModel.latest ? 'Trained' : 'No Model'} />
+                          {metrics.latestModel.ok && metrics.latestModel.latest && (
+                            <div className="mt-4">
+                              <p className="text-white/60 text-xs mb-1">Model ID:</p>
+                              <p className="font-mono text-sm bg-white/10 px-3 py-2 rounded-lg text-white break-all">
+                                {metrics.latestModel.latest}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-white/50">Click "Check All" to monitor</p>
+                      )}
+                    </div>
+
+                    <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur rounded-2xl p-6 border border-white/10 shadow-xl">
+                      <h2 className="text-xl font-semibold text-white mb-4">Player Catalog</h2>
+                      {metrics.catalog ? (
+                        <div className="space-y-3">
+                          <StatusBadge ok={metrics.catalog.ok} />
+                          {metrics.catalog.ok && (
+                            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+                              <div className="bg-white/5 p-3 rounded-xl">
+                                <p className="text-2xl font-bold text-blue-300">{metrics.catalog.players?.length || 0}</p>
+                                <p className="text-white/60 text-xs mt-1">Players</p>
+                              </div>
+                              <div className="bg-white/5 p-3 rounded-xl">
+                                <p className="text-2xl font-bold text-green-300">{metrics.catalog.teams?.length || 0}</p>
+                                <p className="text-white/60 text-xs mt-1">Teams</p>
+                              </div>
+                              <div className="bg-white/5 p-3 rounded-xl">
+                                <p className="text-2xl font-bold text-purple-300">{metrics.catalog.opps?.length || 0}</p>
+                                <p className="text-white/60 text-xs mt-1">Opponents</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-white/50">Click "Check All" to monitor</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-2xl p-6">
+                    <h3 className="text-blue-300 font-semibold mb-3">Pipeline Health Checklist</h3>
+                    <div className="grid md:grid-cols-2 gap-3 text-blue-200 text-sm">
+                      <div>✓ API responds to /api/health</div>
+                      <div>✓ ETR CSV files uploaded (20 days)</div>
+                      <div>✓ Model trained successfully</div>
+                      <div>✓ Player catalog populated</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<MonitoringDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
