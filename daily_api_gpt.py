@@ -158,3 +158,115 @@ def predict():
         return jsonify(_strip_dates({"ok":True, "pred": preds}))
     except Exception as e:
         return jsonify(ok=False, error=str(e)), 500
+
+
+# ===== helpers to read union CSV (for catalog & bulk) =====
+def _union_etr_df():
+    files = sorted(glob.glob("data/etr/*.csv"))
+    if not files:
+        return pd.DataFrame()
+    dfs=[]
+    for f in files:
+        try:
+            df=pd.read_csv(f)
+        except Exception:
+            df=pd.read_csv(f,encoding="latin-1")
+        dfs.append(df)
+    df=pd.concat(dfs, ignore_index=True)
+
+    # normalize column names
+    cmap = {c.lower(): c for c in df.columns}
+    def col(*alts):
+        for a in alts:
+            c = cmap.get(a.lower())
+            if c: return c
+        return None
+
+    pcol = col("Player")
+    tcol = col("Team")
+    ocol = col("Opp","Opponent")
+    mcol = col("Minutes","Min","mins")
+    if pcol: df=df.rename(columns={pcol:"Player"})
+    if tcol: df=df.rename(columns={tcol:"Team"})
+    if ocol: df=df.rename(columns={ocol:"Opp"})
+    if mcol: df=df.rename(columns={mcol:"Minutes"})
+    return df
+
+# ===== catalog =====
+@bp.get("/catalog")
+def catalog():
+    df=_union_etr_df()
+    if df.empty:
+        return jsonify(ok=False, error="no data uploaded"), 400
+    players=sorted(set(df.get("Player",pd.Series(dtype=str)).dropna().astype(str)))
+    teams  =sorted(set(df.get("Team",pd.Series(dtype=str)).dropna().astype(str)))
+    opps   =sorted(set(df.get("Opp", pd.Series(dtype=str)).dropna().astype(str)))
+    return jsonify(ok=True, players=players, teams=teams, opps=opps)
+
+# ===== bulk predict via JSON =====
+# Body: [{"player":"Zion Williamson","team":"NOP","opp":"LAL","minutes":30}, ...]
+@bp.post("/predict_bulk_json")
+def predict_bulk_json():
+    rows = request.get_json(silent=True)
+    if not isinstance(rows, list) or not rows:
+        return jsonify(ok=False, error="body must be a non-empty JSON array"), 400
+    try:
+        bundle = load_latest_artifact()
+    except Exception as e:
+        return jsonify(ok=False, error=f"Model load failed: {e}"), 500
+
+    out=[]
+    for r in rows:
+        player  = (r or {}).get("player"); team=(r or {}).get("team"); opp=(r or {}).get("opp")
+        minutes = (r or {}).get("minutes", 30)
+        if not player or not team or not opp:
+            out.append({"ok":False,"error":"Missing player/team/opp","input":r}); continue
+        try:
+            pred = predict_with_features(bundle, player, team, opp, minutes)
+            out.append({"ok":True,"player":player,"team":team,"opp":opp,"minutes":minutes,"pred":pred})
+        except Exception as e:
+            out.append({"ok":False,"error":str(e),"input":r})
+    return jsonify(_strip_dates({"ok":True,"results":out}))
+
+# ===== bulk predict via CSV upload =====
+# CSV columns required: Player,Team,Opp,Minutes  (case-insensitive)
+@bp.post("/predict_bulk_csv")
+def predict_bulk_csv():
+    f = request.files.get("file")
+    if not f:
+        return jsonify(ok=False, error="no file"), 400
+    try:
+        df = pd.read_csv(f)
+    except Exception:
+        f.stream.seek(0)
+        df = pd.read_csv(f, encoding="latin-1")
+
+    # normalize
+    cmap = {c.lower(): c for c in df.columns}
+    def col(*alts):
+        for a in alts:
+            c = cmap.get(a.lower())
+            if c: return c
+        return None
+    pcol = col("Player"); tcol=col("Team"); ocol=col("Opp","Opponent"); mcol=col("Minutes","Min","mins")
+    if not all([pcol,tcol,ocol,mcol]):
+        return jsonify(ok=False, error="CSV must include Player, Team, Opp, Minutes"), 400
+    df = df.rename(columns={pcol:"Player", tcol:"Team", ocol:"Opp", mcol:"Minutes"})
+    df["Minutes"] = pd.to_numeric(df["Minutes"], errors="coerce").fillna(30)
+
+    try:
+        bundle = load_latest_artifact()
+    except Exception as e:
+        return jsonify(ok=False, error=f"Model load failed: {e}"), 500
+
+    results=[]
+    for _,row in df.iterrows():
+        player=row.get("Player"); team=row.get("Team"); opp=row.get("Opp"); minutes=row.get("Minutes")
+        if not isinstance(player,str) or not isinstance(team,str) or not isinstance(opp,str):
+            results.append({"ok":False,"error":"bad row","row":row.to_dict()}); continue
+        try:
+            pred=predict_with_features(bundle, player, team, opp, minutes)
+            results.append({"ok":True,"player":player,"team":team,"opp":opp,"minutes":minutes,"pred":pred})
+        except Exception as e:
+            results.append({"ok":False,"error":str(e),"row":row.to_dict()})
+    return jsonify(_strip_dates({"ok":True,"results":results}))
