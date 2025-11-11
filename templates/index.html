@@ -1,119 +1,113 @@
-diff --git a/templates/index.html b/templates/index.html
-new file mode 100644
-index 0000000000000000000000000000000000000000..39128939ed1c7e0c656f4b02f84393ebd709052d
---- /dev/null
-+++ b/templates/index.html
-@@ -0,0 +1,113 @@
-+<!DOCTYPE html>
-+<html lang="en">
-+  <head>
-+    <meta charset="UTF-8" />
-+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-+    <title>ETR Projections Control Panel</title>
-+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-+  </head>
-+  <body>
-+    <main>
-+      <header>
-+        <h1>ETR Projections Ops Console</h1>
-+        <p>
-+          Use this console to upload the latest ETR projection CSVs, train a model, and request predictions via the
-+          hosted API. All actions are sent to the <code>/api/gpt</code> blueprint that powers the backend.
-+        </p>
-+      </header>
-+
-+      <section aria-labelledby="system-status">
-+        <h2 id="system-status">System Status</h2>
-+        <p>
-+          Quickly verify that the API is reachable and that a trained model artifact is available for predictions.
-+        </p>
-+        <div class="flex">
-+          <button id="btn-health" class="secondary" type="button">Check API Health</button>
-+          <button id="btn-model-status" type="button">Check Latest Model</button>
-+          <button id="btn-catalog" type="button">Fetch Catalog</button>
-+        </div>
-+        <div id="status-output" class="status" role="status" aria-live="polite"></div>
-+        <div id="latest-model-output" class="empty-hint" role="status" aria-live="polite"></div>
-+      </section>
-+
-+      <div class="grid">
-+        <section aria-labelledby="upload">
-+          <h2 id="upload">1. Upload ETR CSV</h2>
-+          <form id="form-upload">
-+            <label for="etr-file">Choose the latest projections CSV</label>
-+            <input id="etr-file" name="file" type="file" accept=".csv" required />
-+            <small>The file will be stored in <code>data/etr/</code> on the server.</small>
-+            <button type="submit">Upload CSV</button>
-+          </form>
-+          <div id="upload-output" class="status" role="status" aria-live="polite">No upload yet.</div>
-+        </section>
-+
-+        <section aria-labelledby="train">
-+          <h2 id="train">2. Train / Refresh Model</h2>
-+          <p>
-+            Once the CSVs are uploaded, kick off model training. This fits a fresh model and persists it for
-+            predictions.
-+          </p>
-+          <button id="btn-train" class="danger" type="button">Train Model</button>
-+          <div id="train-output" class="status" role="status" aria-live="polite">Model not trained in this session.</div>
-+        </section>
-+
-+        <section aria-labelledby="quick-predict">
-+          <h2 id="quick-predict">3. Quick Prediction</h2>
-+          <form id="form-predict">
-+            <label for="player">Player</label>
-+            <input id="player" name="player" placeholder="e.g. Nikola Jokic" required />
-+
-+            <label for="team">Team</label>
-+            <input id="team" name="team" placeholder="e.g. DEN" required />
-+
-+            <label for="opp">Opponent</label>
-+            <input id="opp" name="opp" placeholder="e.g. LAL" required />
-+
-+            <label for="minutes">Minutes</label>
-+            <input id="minutes" name="minutes" type="number" min="1" max="60" value="30" />
-+
-+            <button type="submit">Predict</button>
-+          </form>
-+          <div id="predict-output" class="status" role="status" aria-live="polite">No prediction requested.</div>
-+        </section>
-+
-+        <section aria-labelledby="bulk-json">
-+          <h2 id="bulk-json">4. Bulk Predict (JSON)</h2>
-+          <p>
-+            Paste an array of JSON rows that include <code>player</code>, <code>team</code>, <code>opp</code>, and optional
-+            <code>minutes</code>.
-+          </p>
-+          <textarea id="bulk-json" rows="8" placeholder='[
-+  {"player": "Nikola Jokic", "team": "DEN", "opp": "LAL", "minutes": 34},
-+  {"player": "LeBron James", "team": "LAL", "opp": "DEN", "minutes": 35}
-+]'></textarea>
-+          <button id="btn-bulk-json" type="button">Send Bulk JSON</button>
-+          <div id="bulk-output" class="status" role="status" aria-live="polite">No bulk predictions requested.</div>
-+        </section>
-+
-+        <section aria-labelledby="bulk-csv">
-+          <h2 id="bulk-csv">5. Bulk Predict (CSV Upload)</h2>
-+          <p>
-+            Upload a CSV that includes <code>Player</code>, <code>Team</code>, <code>Opp</code>, and <code>Minutes</code>
-+            columns. The server will normalize casing and attempt to infer equivalent headers.
-+          </p>
-+          <form id="form-bulk-csv">
-+            <label for="bulk-csv-file">Bulk prediction CSV</label>
-+            <input id="bulk-csv-file" name="file" type="file" accept=".csv" required />
-+            <button type="submit">Upload for Prediction</button>
-+          </form>
-+          <div id="bulk-csv-output" class="status" role="status" aria-live="polite">No CSV uploaded.</div>
-+        </section>
-+      </div>
-+
-+      <section aria-labelledby="catalog">
-+        <h2 id="catalog">Catalog Explorer</h2>
-+        <p>The catalog lists all distinct players, teams, and opponents seen in the uploaded CSV files.</p>
-+        <div id="catalog-output" class="status" role="status" aria-live="polite">No catalog loaded yet.</div>
-+      </section>
-+    </main>
-+
-+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
-+  </body>
-+</html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ETR Projections Control Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ETR Projections Ops Console</h1>
+        <p>
+          Use this console to upload the latest ETR projection CSVs, train a model, and request predictions via the
+          hosted API. All actions are sent to the <code>/api/gpt</code> blueprint that powers the backend.
+        </p>
+      </header>
+
+      <section aria-labelledby="system-status">
+        <h2 id="system-status">System Status</h2>
+        <p>
+          Quickly verify that the API is reachable and that a trained model artifact is available for predictions.
+        </p>
+        <div class="flex">
+          <button id="btn-health" class="secondary" type="button">Check API Health</button>
+          <button id="btn-model-status" type="button">Check Latest Model</button>
+          <button id="btn-catalog" type="button">Fetch Catalog</button>
+        </div>
+        <div id="status-output" class="status" role="status" aria-live="polite"></div>
+        <div id="latest-model-output" class="empty-hint" role="status" aria-live="polite"></div>
+      </section>
+
+      <div class="grid">
+        <section aria-labelledby="upload">
+          <h2 id="upload">1. Upload ETR CSV</h2>
+          <form id="form-upload">
+            <label for="etr-file">Choose the latest projections CSV</label>
+            <input id="etr-file" name="file" type="file" accept=".csv" required />
+            <small>The file will be stored in <code>data/etr/</code> on the server.</small>
+            <button type="submit">Upload CSV</button>
+          </form>
+          <div id="upload-output" class="status" role="status" aria-live="polite">No upload yet.</div>
+        </section>
+
+        <section aria-labelledby="train">
+          <h2 id="train">2. Train / Refresh Model</h2>
+          <p>
+            Once the CSVs are uploaded, kick off model training. This fits a fresh model and persists it for
+            predictions.
+          </p>
+          <button id="btn-train" class="danger" type="button">Train Model</button>
+          <div id="train-output" class="status" role="status" aria-live="polite">Model not trained in this session.</div>
+        </section>
+
+        <section aria-labelledby="quick-predict">
+          <h2 id="quick-predict">3. Quick Prediction</h2>
+          <form id="form-predict">
+            <label for="player">Player</label>
+            <input id="player" name="player" placeholder="e.g. Nikola Jokic" required />
+
+            <label for="team">Team</label>
+            <input id="team" name="team" placeholder="e.g. DEN" required />
+
+            <label for="opp">Opponent</label>
+            <input id="opp" name="opp" placeholder="e.g. LAL" required />
+
+            <label for="minutes">Minutes</label>
+            <input id="minutes" name="minutes" type="number" min="1" max="60" value="30" />
+
+            <button type="submit">Predict</button>
+          </form>
+          <div id="predict-output" class="status" role="status" aria-live="polite">No prediction requested.</div>
+        </section>
+
+        <section aria-labelledby="bulk-json">
+          <h2 id="bulk-json">4. Bulk Predict (JSON)</h2>
+          <p>
+            Paste an array of JSON rows that include <code>player</code>, <code>team</code>, <code>opp</code>, and optional
+            <code>minutes</code>.
+          </p>
+          <textarea id="bulk-json" rows="8" placeholder='[
+  {"player": "Nikola Jokic", "team": "DEN", "opp": "LAL", "minutes": 34},
+  {"player": "LeBron James", "team": "LAL", "opp": "DEN", "minutes": 35}
+]'></textarea>
+          <button id="btn-bulk-json" type="button">Send Bulk JSON</button>
+          <div id="bulk-output" class="status" role="status" aria-live="polite">No bulk predictions requested.</div>
+        </section>
+
+        <section aria-labelledby="bulk-csv">
+          <h2 id="bulk-csv">5. Bulk Predict (CSV Upload)</h2>
+          <p>
+            Upload a CSV that includes <code>Player</code>, <code>Team</code>, <code>Opp</code>, and <code>Minutes</code>
+            columns. The server will normalize casing and attempt to infer equivalent headers.
+          </p>
+          <form id="form-bulk-csv">
+            <label for="bulk-csv-file">Bulk prediction CSV</label>
+            <input id="bulk-csv-file" name="file" type="file" accept=".csv" required />
+            <button type="submit">Upload for Prediction</button>
+          </form>
+          <div id="bulk-csv-output" class="status" role="status" aria-live="polite">No CSV uploaded.</div>
+        </section>
+      </div>
+
+      <section aria-labelledby="catalog">
+        <h2 id="catalog">Catalog Explorer</h2>
+        <p>The catalog lists all distinct players, teams, and opponents seen in the uploaded CSV files.</p>
+        <div id="catalog-output" class="status" role="status" aria-live="polite">No catalog loaded yet.</div>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </body>
+</html>
