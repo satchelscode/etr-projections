@@ -1,13 +1,18 @@
 diff --git a/app.py b/app.py
-index bf760d63284c198dd913e0865d48cdddf4a28bdb..aca17ef05891abefa1895baa2fce3b81444fd9ea 100644
+index bf760d63284c198dd913e0865d48cdddf4a28bdb..08fcbd928a2c62da7d577c88f16f7ab7a8b8b413 100644
 --- a/app.py
 +++ b/app.py
-@@ -1,16 +1,16 @@
+@@ -1,16 +1,20 @@
 -from flask import Flask, jsonify
++"""Application entry point for the ETR projections service."""
++
 +from flask import Flask, jsonify, render_template
++
  from daily_api_gpt import bp as gpt_bp
  
- app = Flask(__name__)
+-app = Flask(__name__)
++
++app = Flask(__name__, static_folder="static", template_folder="templates")
  app.register_blueprint(gpt_bp, url_prefix="/api/gpt")
  
  @app.get("/")
