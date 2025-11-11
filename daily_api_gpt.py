@@ -40,6 +40,50 @@ def upload_etr():
     f.save(path)
     return jsonify(ok=True, saved=path)
 
+@bp.get("/debug/etr_columns")
+def debug_etr_columns():
+    files = sorted(glob.glob("data/etr/*.csv"))
+    if not files:
+        return jsonify(ok=False, error="no ETR CSVs uploaded"), 400
+    import collections
+    counts = collections.Counter()
+    samples = {}
+    for p in files:
+        try:
+            df = pd.read_csv(p, nrows=1)
+        except Exception:
+            df = pd.read_csv(p, nrows=1, encoding="latin-1")
+        for c in df.columns:
+            counts[c] += 1
+            if c not in samples and not df.empty:
+                samples[c] = str(df.iloc[0].get(c, ""))
+    cols = [{"name": k, "count": v, "sample": samples.get(k, "")}
+            for k, v in counts.most_common(300)]
+    return jsonify(ok=True, files=len(files), columns=cols)
+
+ALIASES = {
+    # canonical -> list of possible CSV column names
+    "PTS": ["PTS","Points","Proj Pts","Projected Points","Points Projection"],
+    "REB": ["REB","Rebounds","Proj Reb","Projected Rebounds","Rebounds Projection"],
+    "AST": ["AST","Assists","Proj Ast","Projected Assists","Assists Projection"],
+    "3PM": ["3PM","3PTM","3PT FG Made","3PT Made","3-Pointers Made","3PT","3P Made"],
+    "PRA": ["PRA","Pts+Reb+Ast","Points+Rebounds+Assists","Proj PRA"],
+    "STL": ["STL","Steals","Projected Steals","Steals Projection"],
+    "BLK": ["BLK","Blocks","Projected Blocks","Blocks Projection"],
+    "TOV": ["TOV","Turnovers","Projected Turnovers","Turnovers Projection"],
+}
+
+def _find_present_stat_cols(df):
+    present = {}
+    lower_map = {c.lower(): c for c in df.columns}
+    for canon, options in ALIASES.items():
+        for opt in options:
+            c = lower_map.get(opt.lower())
+            if c:
+                present[canon] = c
+                break
+    return present
+
 @bp.post("/train")
 def train():
     _ensure_dirs()
@@ -59,7 +103,8 @@ def train():
     cmap = {c.lower(): c for c in df.columns}
     def col(*alts):
         for a in alts:
-            if a.lower() in cmap: return cmap[a.lower()]
+            c = cmap.get(a.lower())
+            if c: return c
         return None
 
     player_col  = col("Player","player","PLAYER")
@@ -69,18 +114,20 @@ def train():
     if not all([player_col, team_col, opp_col, minutes_col]):
         return jsonify(ok=False, error="CSV must include Player, Team, Opp, Minutes"), 400
 
-    stat_candidates = ["PTS","REB","AST","3PM","STL","BLK","TOV","PRA"]
-    stat_cols = [c for c in df.columns if c.upper() in stat_candidates]
-    if not stat_cols:
-        return jsonify(ok=False, error="no stat projection columns found"), 400
+    stat_map = _find_present_stat_cols(df)
+    if not stat_map:
+        return jsonify(ok=False, error="no recognizable stat projection columns found"), 400
 
-    long = df[[player_col, team_col, opp_col, minutes_col] + stat_cols].copy()
+    use_cols = [player_col, team_col, opp_col, minutes_col] + list(stat_map.values())
+    long = df[use_cols].copy()
     long = long.rename(columns={
-        player_col:"Player", team_col:"Team", opp_col:"Opp", minutes_col:"Minutes"
+        player_col:"Player", team_col:"Team", opp_col:"Opp", minutes_col:"Minutes", **{v:k for k,v in stat_map.items()}
     })
+
     long = long.melt(id_vars=["Player","Team","Opp","Minutes"],
-                     value_vars=stat_cols,
+                     value_vars=list(stat_map.keys()),
                      var_name="Stat", value_name="Projection")
+
     long = long.dropna(subset=["Player","Team","Opp","Minutes","Stat","Projection"])
     long["Minutes"] = pd.to_numeric(long["Minutes"], errors="coerce")
     long["Projection"] = pd.to_numeric(long["Projection"], errors="coerce")
@@ -91,7 +138,8 @@ def train():
     bundle = fit_model(long)
     model_id = f"model_{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}"
     out_path = save_artifact(bundle, model_id)
-    return jsonify(_strip_dates({"ok": True, "model_id": model_id, "saved": out_path}))
+    return jsonify(_strip_dates({"ok": True, "model_id": model_id, "saved": out_path,
+                                 "stats_trained": sorted(list(stat_map.keys()))}))
 
 @bp.get("/predict")
 def predict():
