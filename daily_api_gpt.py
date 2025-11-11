@@ -62,16 +62,16 @@ def debug_etr_columns():
     return jsonify(ok=True, files=len(files), columns=cols)
 
 ALIASES = {
-    # canonical -> list of possible CSV column names
     "PTS": ["PTS","Points","Proj Pts","Projected Points","Points Projection"],
     "REB": ["REB","Rebounds","Proj Reb","Projected Rebounds","Rebounds Projection"],
     "AST": ["AST","Assists","Proj Ast","Projected Assists","Assists Projection"],
-    "3PM": ["3PM","3PTM","3PT FG Made","3PT Made","3-Pointers Made","3PT","3P Made"],
+    "3PM": ["3PM","3PTM","3PT FG Made","3PT Made","3-Pointers Made","3PT","3P Made","Three Pointers Made"],
     "PRA": ["PRA","Pts+Reb+Ast","Points+Rebounds+Assists","Proj PRA"],
     "STL": ["STL","Steals","Projected Steals","Steals Projection"],
     "BLK": ["BLK","Blocks","Projected Blocks","Blocks Projection"],
     "TOV": ["TOV","Turnovers","Projected Turnovers","Turnovers Projection"],
 }
+
 
 def _find_present_stat_cols(df):
     present = {}
