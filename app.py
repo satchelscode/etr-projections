@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
+import math
 from io import StringIO, BytesIO
 
 app = Flask(__name__)
@@ -80,6 +81,14 @@ class NBAProjectionSystem:
         except:
             return None, None
     
+    def is_valid_number(self, value):
+        """Check if value is a valid number (not NaN, not None, not inf)"""
+        if value is None:
+            return False
+        if isinstance(value, float):
+            return not (math.isnan(value) or math.isinf(value))
+        return True
+    
     def predict(self, player_name, opponent, minutes):
         try:
             team, position = self.get_player_info(player_name)
@@ -96,7 +105,16 @@ class NBAProjectionSystem:
             for stat in self.stat_columns:
                 rf_pred = self.models[stat]['rf'].predict(X)[0]
                 gb_pred = self.models[stat]['gb'].predict(X)[0]
-                predictions[stat] = round((rf_pred + gb_pred) / 2, 2)
+                avg_pred = (rf_pred + gb_pred) / 2
+                
+                # Validate the prediction
+                if not self.is_valid_number(avg_pred):
+                    return {
+                        'success': False,
+                        'error': f'Invalid prediction for {stat}'
+                    }
+                
+                predictions[stat] = round(float(avg_pred), 2)
             
             return {
                 'success': True,
@@ -104,11 +122,11 @@ class NBAProjectionSystem:
                 'team': team,
                 'opponent': opponent,
                 'position': position,
-                'minutes': minutes,
+                'minutes': float(minutes),
                 'projections': predictions
             }
         except Exception as e:
-            print(f"Error in predict: {e}")
+            print(f"Error in predict for {player_name}: {e}")
             return {
                 'success': False,
                 'error': str(e)
@@ -124,10 +142,8 @@ class NBAProjectionSystem:
             players_data = []
             for _, row in df.iterrows():
                 try:
-                    # Get the minutes value
                     minutes = float(row.get('MIN', 0))
                     
-                    # Only include players with minutes > 0
                     if pd.notna(minutes) and minutes > 0:
                         players_data.append({
                             'player': str(row['NAME']).strip(),
@@ -136,7 +152,6 @@ class NBAProjectionSystem:
                             'rotowire_min': minutes
                         })
                 except Exception as e:
-                    print(f"Error parsing row: {e}")
                     continue
             
             print(f"Parsed {len(players_data)} players from RotoWire")
@@ -162,33 +177,42 @@ class NBAProjectionSystem:
             result = self.predict(player_name, opponent, minutes)
             
             if result['success']:
-                proj = result['projections']
-                
-                # Check if projections are valid (not NaN)
-                if all(not (pd.isna(v) or v is None) for v in proj.values()):
-                    projections.append({
-                        'player': player_name,
-                        'team': result['team'],
-                        'opponent': opponent,
-                        'position': result['position'],
-                        'minutes': float(minutes),
-                        'points': float(proj['Points']),
-                        'rebounds': float(proj['Rebounds']),
-                        'assists': float(proj['Assists']),
-                        'three_pointers_made': float(proj['Three Pointers Made']),
-                        'steals': float(proj['Steals']),
-                        'blocks': float(proj['Blocks']),
-                        'turnovers': float(proj['Turnovers']),
-                        'pra': float(proj['PRA'])
-                    })
-                else:
-                    skipped.append(f"{player_name} (invalid projection values)")
+                try:
+                    proj = result['projections']
+                    
+                    # Validate all projection values
+                    valid = True
+                    for key, value in proj.items():
+                        if not self.is_valid_number(value):
+                            valid = False
+                            break
+                    
+                    if valid:
+                        projections.append({
+                            'player': str(player_name),
+                            'team': str(result['team']),
+                            'opponent': str(opponent),
+                            'position': str(result['position']),
+                            'minutes': float(minutes),
+                            'points': float(proj['Points']),
+                            'rebounds': float(proj['Rebounds']),
+                            'assists': float(proj['Assists']),
+                            'three_pointers_made': float(proj['Three Pointers Made']),
+                            'steals': float(proj['Steals']),
+                            'blocks': float(proj['Blocks']),
+                            'turnovers': float(proj['Turnovers']),
+                            'pra': float(proj['PRA'])
+                        })
+                    else:
+                        skipped.append(f"{player_name} (invalid values)")
+                except Exception as e:
+                    skipped.append(f"{player_name} (conversion error: {e})")
             else:
-                skipped.append(f"{player_name} ({result.get('error', 'unknown error')})")
+                skipped.append(f"{player_name} ({result.get('error', 'unknown')})")
         
         print(f"Successfully generated {len(projections)} projections")
         if skipped:
-            print(f"Skipped {len(skipped)} players: {skipped[:5]}...")  # Show first 5
+            print(f"Skipped {len(skipped)} players")
         
         return projections
 
