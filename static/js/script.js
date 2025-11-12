@@ -7,17 +7,17 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        // Get form values
+        // Get form values (no team or position needed!)
         const formData = {
             player: document.getElementById('player').value,
-            team: document.getElementById('team').value,
             opponent: document.getElementById('opponent').value,
-            position: document.getElementById('position').value,
             minutes: document.getElementById('minutes').value
         };
 
+        console.log('Sending request:', formData); // Debug log
+
         // Validate
-        if (!formData.player || !formData.team || !formData.opponent) {
+        if (!formData.player || !formData.opponent) {
             showError('Please fill in all required fields');
             return;
         }
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             const data = await response.json();
+            console.log('Received response:', data); // Debug log
 
             // Hide loading
             loadingSpinner.style.display = 'none';
@@ -49,12 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
         } catch (error) {
+            console.error('Error:', error); // Debug log
             loadingSpinner.style.display = 'none';
             showError('Network error: ' + error.message);
         }
     });
 
     function displayResults(data) {
+        console.log('Displaying results:', data); // Debug log
+        
         // Update player info
         document.getElementById('playerName').textContent = data.player;
         document.getElementById('matchupInfo').textContent = 
@@ -62,28 +66,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update stats
         const projections = data.projections;
-        document.getElementById('stat-pra').textContent = projections.PRA;
-        document.getElementById('stat-points').textContent = projections.Points;
-        document.getElementById('stat-rebounds').textContent = projections.Rebounds;
-        document.getElementById('stat-assists').textContent = projections.Assists;
-        document.getElementById('stat-threes').textContent = projections['Three Pointers Made'];
-        document.getElementById('stat-steals').textContent = projections.Steals;
-        document.getElementById('stat-blocks').textContent = projections.Blocks;
-        document.getElementById('stat-turnovers').textContent = projections.Turnovers;
+        document.getElementById('stat-pra').textContent = projections.PRA || '0';
+        document.getElementById('stat-points').textContent = projections.Points || '0';
+        document.getElementById('stat-rebounds').textContent = projections.Rebounds || '0';
+        document.getElementById('stat-assists').textContent = projections.Assists || '0';
+        document.getElementById('stat-threes').textContent = projections['Three Pointers Made'] || '0';
+        document.getElementById('stat-steals').textContent = projections.Steals || '0';
+        document.getElementById('stat-blocks').textContent = projections.Blocks || '0';
+        document.getElementById('stat-turnovers').textContent = projections.Turnovers || '0';
 
         // Show results with animation
         resultsSection.style.display = 'block';
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        console.log('Results displayed successfully'); // Debug log
     }
 
     function showError(message) {
+        console.error('Showing error:', message); // Debug log
         errorMessage.textContent = message;
         errorMessage.style.display = 'block';
         errorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-
-    // Auto-fill team when player is selected (if we know the player's team)
-    document.getElementById('player').addEventListener('change', function() {
-        // This could be enhanced to auto-select the player's team if needed
-    });
 });
