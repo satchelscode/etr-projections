@@ -150,6 +150,7 @@ class NBAProjectionSystem:
     
     def generate_daily_projections(self, rotowire_data):
         projections = []
+        skipped = []
         
         print(f"Generating projections for {len(rotowire_data)} players...")
         
@@ -162,25 +163,33 @@ class NBAProjectionSystem:
             
             if result['success']:
                 proj = result['projections']
-                projections.append({
-                    'player': player_name,
-                    'team': result['team'],
-                    'opponent': opponent,
-                    'position': result['position'],
-                    'minutes': minutes,
-                    'points': proj['Points'],
-                    'rebounds': proj['Rebounds'],
-                    'assists': proj['Assists'],
-                    'three_pointers_made': proj['Three Pointers Made'],
-                    'steals': proj['Steals'],
-                    'blocks': proj['Blocks'],
-                    'turnovers': proj['Turnovers'],
-                    'pra': proj['PRA']
-                })
+                
+                # Check if projections are valid (not NaN)
+                if all(not (pd.isna(v) or v is None) for v in proj.values()):
+                    projections.append({
+                        'player': player_name,
+                        'team': result['team'],
+                        'opponent': opponent,
+                        'position': result['position'],
+                        'minutes': float(minutes),
+                        'points': float(proj['Points']),
+                        'rebounds': float(proj['Rebounds']),
+                        'assists': float(proj['Assists']),
+                        'three_pointers_made': float(proj['Three Pointers Made']),
+                        'steals': float(proj['Steals']),
+                        'blocks': float(proj['Blocks']),
+                        'turnovers': float(proj['Turnovers']),
+                        'pra': float(proj['PRA'])
+                    })
+                else:
+                    skipped.append(f"{player_name} (invalid projection values)")
             else:
-                print(f"Failed to project {player_name}: {result.get('error')}")
+                skipped.append(f"{player_name} ({result.get('error', 'unknown error')})")
         
         print(f"Successfully generated {len(projections)} projections")
+        if skipped:
+            print(f"Skipped {len(skipped)} players: {skipped[:5]}...")  # Show first 5
+        
         return projections
 
 projection_system = NBAProjectionSystem()
