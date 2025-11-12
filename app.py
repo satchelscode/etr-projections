@@ -4,10 +4,9 @@ import numpy as np
 import pickle
 import os
 from io import StringIO, BytesIO
-from bs4 import BeautifulSoup
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 class NBAProjectionSystem:
     def __init__(self):
@@ -24,7 +23,6 @@ class NBAProjectionSystem:
         self.load_models()
     
     def load_models(self):
-        """Load all trained models and data"""
         try:
             with open('models/nba_models.pkl', 'rb') as f:
                 self.models = pickle.load(f)
@@ -40,15 +38,12 @@ class NBAProjectionSystem:
             self.teams_list = sorted(list(self.team_averages.keys()))
             
             print("✓ Models loaded successfully")
-            print(f"✓ {len(self.players_list)} players in database")
-            print(f"✓ {len(self.teams_list)} teams in database")
             
         except Exception as e:
             print(f"Error loading models: {e}")
             raise
     
     def create_feature_vector(self, player_name, team, opponent, position, minutes):
-        """Create feature vector for prediction"""
         feature_vec = []
         
         if player_name in self.player_averages:
@@ -78,16 +73,14 @@ class NBAProjectionSystem:
         return np.array([feature_vec])
     
     def get_player_info(self, player_name):
-        """Get player's team and position from the master data"""
         try:
             master_df = pd.read_csv('models/NBA_Master_Stats.csv')
             player_data = master_df[master_df['Player'] == player_name].iloc[0]
             return player_data['Team'], player_data['Position']
-        except Exception as e:
+        except:
             return None, None
     
     def predict(self, player_name, opponent, minutes):
-        """Make prediction for a player"""
         try:
             team, position = self.get_player_info(player_name)
             
@@ -115,70 +108,51 @@ class NBAProjectionSystem:
                 'projections': predictions
             }
         except Exception as e:
+            print(f"Error in predict: {e}")
             return {
                 'success': False,
                 'error': str(e)
             }
     
     def parse_rotowire_csv(self, file_content):
-        """Parse RotoWire CSV to extract player, team, opponent, and minutes"""
-        df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
-        
-        # RotoWire columns: NAME, Team, OPP, Pos, MIN, ...
-        players_data = []
-        for _, row in df.iterrows():
-            if pd.notna(row.get('MIN')) and float(row.get('MIN', 0)) > 0:
-                players_data.append({
-                    'player': row['NAME'],
-                    'team': row['Team'],
-                    'opponent': row['OPP'],
-                    'rotowire_min': float(row['MIN'])
-                })
-        
-        return players_data
+        try:
+            df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
+            print(f"RotoWire CSV columns: {df.columns.tolist()}")
+            print(f"RotoWire CSV shape: {df.shape}")
+            
+            players_data = []
+            for _, row in df.iterrows():
+                try:
+                    minutes = float(row.get('MIN', 0))
+                    if pd.notna(minutes) and minutes > 0:
+                        players_data.append({
+                            'player': str(row['NAME']).strip(),
+                            'team': str(row['Team']).strip(),
+                            'opponent': str(row['OPP']).strip(),
+                            'rotowire_min': minutes
+                        })
+                except Exception as e:
+                    print(f"Error parsing row: {e}")
+                    continue
+            
+            print(f"Parsed {len(players_data)} players from RotoWire")
+            return players_data
+            
+        except Exception as e:
+            print(f"Error parsing RotoWire CSV: {e}")
+            return []
     
-    def parse_basketball_monster_html(self, html_content):
-        """Parse Basketball Monster HTML to extract player and minutes"""
-        soup = BeautifulSoup(html_content, 'html.parser')
-        players_data = {}
-        
-        # Find the table with lineup data
-        table = soup.find('table', {'id': 'lineups'}) or soup.find('table')
-        
-        if table:
-            for row in table.find_all('tr')[1:]:  # Skip header
-                cells = row.find_all('td')
-                if len(cells) >= 2:
-                    player_cell = cells[0]
-                    minutes_cell = cells[1] if len(cells) > 1 else None
-                    
-                    player_name = player_cell.get_text(strip=True)
-                    if minutes_cell:
-                        try:
-                            minutes = float(minutes_cell.get_text(strip=True))
-                            players_data[player_name] = minutes
-                        except:
-                            pass
-        
-        return players_data
-    
-    def generate_daily_projections(self, rotowire_data, basketball_monster_data):
-        """Generate projections for all players"""
+    def generate_daily_projections(self, rotowire_data):
         projections = []
+        
+        print(f"Generating projections for {len(rotowire_data)} players...")
         
         for rw_player in rotowire_data:
             player_name = rw_player['player']
             opponent = rw_player['opponent']
-            rw_min = rw_player['rotowire_min']
+            minutes = rw_player['rotowire_min']
             
-            # Get Basketball Monster minutes
-            bm_min = basketball_monster_data.get(player_name, rw_min)
-            
-            # Average the two sources
-            avg_minutes = round((rw_min + bm_min) / 2, 1)
-            
-            # Generate projection
-            result = self.predict(player_name, opponent, avg_minutes)
+            result = self.predict(player_name, opponent, minutes)
             
             if result['success']:
                 proj = result['projections']
@@ -187,7 +161,7 @@ class NBAProjectionSystem:
                     'team': result['team'],
                     'opponent': opponent,
                     'position': result['position'],
-                    'minutes': avg_minutes,
+                    'minutes': minutes,
                     'points': proj['Points'],
                     'rebounds': proj['Rebounds'],
                     'assists': proj['Assists'],
@@ -197,72 +171,56 @@ class NBAProjectionSystem:
                     'turnovers': proj['Turnovers'],
                     'pra': proj['PRA']
                 })
+            else:
+                print(f"Failed to project {player_name}: {result.get('error')}")
         
+        print(f"Successfully generated {len(projections)} projections")
         return projections
 
-# Initialize the projection system
 projection_system = NBAProjectionSystem()
 
 @app.route('/')
 def index():
-    """Home page"""
     return render_template('index.html', 
                          players=projection_system.players_list,
                          teams=projection_system.teams_list)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """API endpoint for single player predictions"""
     try:
         data = request.json
-        
         player = data.get('player')
         opponent = data.get('opponent')
         minutes = float(data.get('minutes', 30))
         
         if not player or not opponent:
-            return jsonify({
-                'success': False,
-                'error': 'Missing required fields'
-            })
+            return jsonify({'success': False, 'error': 'Missing required fields'})
         
         result = projection_system.predict(player, opponent, minutes)
         return jsonify(result)
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/generate_daily', methods=['POST'])
 def generate_daily():
-    """Generate projections for entire day"""
     try:
+        print("Received daily generation request")
+        
         rotowire_file = request.files.get('rotowire')
-        basketball_monster_file = request.files.get('basketball_monster')
         
         if not rotowire_file:
-            return jsonify({
-                'success': False,
-                'error': 'RotoWire CSV file is required'
-            })
+            return jsonify({'success': False, 'error': 'RotoWire CSV file is required'})
         
-        # Parse RotoWire CSV
+        print(f"Processing file: {rotowire_file.filename}")
+        
         rotowire_content = rotowire_file.read().decode('utf-8')
         rotowire_data = projection_system.parse_rotowire_csv(rotowire_content)
         
-        # Parse Basketball Monster HTML (optional)
-        basketball_monster_data = {}
-        if basketball_monster_file:
-            bm_content = basketball_monster_file.read().decode('utf-8')
-            basketball_monster_data = projection_system.parse_basketball_monster_html(bm_content)
+        if not rotowire_data:
+            return jsonify({'success': False, 'error': 'No valid data found in RotoWire file'})
         
-        # Generate projections
-        projections = projection_system.generate_daily_projections(
-            rotowire_data, 
-            basketball_monster_data
-        )
+        projections = projection_system.generate_daily_projections(rotowire_data)
         
         return jsonify({
             'success': True,
@@ -271,44 +229,42 @@ def generate_daily():
         })
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        print(f"Error in generate_daily: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/download_projections', methods=['POST'])
 def download_projections():
-    """Download projections in specified format"""
     try:
         data = request.json
         projections = data.get('projections', [])
         
-        # Create DataFrame in desired format
         df_data = []
         for i, proj in enumerate(projections):
+            name_parts = proj['player'].split()
             df_data.append({
                 'id': i + 1,
                 'name': proj['player'],
-                'first_name': proj['player'].split()[0] if ' ' in proj['player'] else proj['player'],
-                'last_name': proj['player'].split()[-1] if ' ' in proj['player'] else '',
+                'first_name': name_parts[0] if name_parts else proj['player'],
+                'last_name': name_parts[-1] if len(name_parts) > 1 else '',
                 'position': proj['position'],
                 'team': proj['team'],
                 'three_pointers_made': proj['three_pointers_made'],
                 'assists': proj['assists'],
                 'blocks': proj['blocks'],
-                'double_double': '',  # Can calculate if needed
+                'double_double': '',
                 'points': proj['points'],
                 'rebounds': proj['rebounds'],
                 'steals': proj['steals'],
-                'triple_double': '',  # Can calculate if needed
+                'triple_double': '',
                 'turnovers': proj['turnovers'],
-                'fd_points': '',  # Calculate FanDuel points if needed
-                'dk_points': ''   # Calculate DraftKings points if needed
+                'fd_points': '',
+                'dk_points': ''
             })
         
         df = pd.DataFrame(df_data)
         
-        # Convert to CSV
         output = BytesIO()
         df.to_csv(output, index=False)
         output.seek(0)
@@ -321,24 +277,18 @@ def download_projections():
         )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/players')
 def get_players():
-    """Get list of all players"""
     return jsonify(projection_system.players_list)
 
 @app.route('/api/teams')
 def get_teams():
-    """Get list of all teams"""
     return jsonify(projection_system.teams_list)
 
 @app.route('/health')
 def health():
-    """Health check endpoint for Render"""
     return jsonify({'status': 'healthy'})
 
 if __name__ == '__main__':
