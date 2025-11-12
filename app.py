@@ -83,9 +83,28 @@ class NBAProjectionSystem:
         
         return np.array([feature_vec])
     
-    def predict(self, player_name, team, opponent, position, minutes):
-        """Make prediction for a player"""
+    def get_player_info(self, player_name):
+        """Get player's team and position from the master data"""
         try:
+            master_df = pd.read_csv('models/NBA_Master_Stats.csv')
+            player_data = master_df[master_df['Player'] == player_name].iloc[0]
+            return player_data['Team'], player_data['Position']
+        except Exception as e:
+            print(f"Error getting player info for {player_name}: {e}")
+            return None, None
+    
+    def predict(self, player_name, opponent, minutes):
+        """Make prediction for a player - team and position auto-filled"""
+        try:
+            # Auto-fill team and position from database
+            team, position = self.get_player_info(player_name)
+            
+            if not team or not position:
+                return {
+                    'success': False,
+                    'error': f'Could not find team/position data for {player_name}'
+                }
+            
             X = self.create_feature_vector(player_name, team, opponent, position, minutes)
             
             predictions = {}
@@ -126,18 +145,17 @@ def predict():
         data = request.json
         
         player = data.get('player')
-        team = data.get('team')
         opponent = data.get('opponent')
-        position = data.get('position', 'SG')
         minutes = float(data.get('minutes', 30))
         
-        if not all([player, team, opponent]):
+        # Only require player and opponent now
+        if not player or not opponent:
             return jsonify({
                 'success': False,
                 'error': 'Missing required fields'
             })
         
-        result = projection_system.predict(player, team, opponent, position, minutes)
+        result = projection_system.predict(player, opponent, minutes)
         return jsonify(result)
         
     except Exception as e:
@@ -164,3 +182,4 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
