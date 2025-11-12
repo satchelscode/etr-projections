@@ -6,6 +6,98 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBA Player Projections</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .daily-section {
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+        }
+        .file-input-wrapper {
+            display: inline-block;
+            margin: 10px;
+        }
+        .file-input-wrapper label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-input-wrapper label:hover {
+            background: #5568d3;
+        }
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+        .file-name {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .projections-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .projections-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+        .projections-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .projections-table tr:hover {
+            background: #f8f9fa;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        .stats-highlight {
+            font-weight: 600;
+            color: #667eea;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -15,9 +107,9 @@
         </header>
 
         <div class="main-content">
-            <!-- Input Form -->
+            <!-- Single Player Projection -->
             <div class="input-section">
-                <h2>Enter Game Details</h2>
+                <h2>Single Player Projection</h2>
                 
                 <form id="projectionForm">
                     <div class="form-group">
@@ -51,7 +143,7 @@
                 </form>
             </div>
 
-            <!-- Results Section -->
+            <!-- Single Player Results -->
             <div class="results-section" id="resultsSection" style="display: none;">
                 <h2>Projected Stats</h2>
                 
@@ -105,6 +197,71 @@
 
                 <div class="note">
                     <p>💡 Projections are based on historical performance, opponent defense, and expected playing time.</p>
+                </div>
+            </div>
+
+            <!-- Daily Projections Section -->
+            <div class="daily-section">
+                <h2>📊 Daily Projections Generator</h2>
+                <p style="color: #666; margin-bottom: 20px;">Upload RotoWire and Basketball Monster files to generate projections for all players</p>
+                
+                <div class="upload-area">
+                    <h3 style="margin-bottom: 20px;">Upload Minute Projections</h3>
+                    
+                    <div class="file-input-wrapper">
+                        <label for="rotowireFile">
+                            📄 RotoWire CSV (Required)
+                        </label>
+                        <input type="file" id="rotowireFile" accept=".csv">
+                        <span class="file-name" id="rotowireFileName">No file selected</span>
+                    </div>
+
+                    <div class="file-input-wrapper">
+                        <label for="basketballMonsterFile">
+                            📄 Basketball Monster HTML (Optional)
+                        </label>
+                        <input type="file" id="basketballMonsterFile" accept=".html">
+                        <span class="file-name" id="basketballMonsterFileName">No file selected</span>
+                    </div>
+
+                    <br><br>
+                    <button class="btn-predict" id="generateDailyBtn" style="width: auto; padding: 15px 40px;">
+                        Generate All Projections
+                    </button>
+                </div>
+
+                <!-- Daily Results -->
+                <div id="dailyResults" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 id="projectionsCount">0 Projections Generated</h3>
+                        <button class="download-btn" id="downloadBtn">
+                            ⬇️ Download CSV
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="projections-table" id="projectionsTable">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>Opp</th>
+                                    <th>Pos</th>
+                                    <th>Min</th>
+                                    <th>PTS</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>3PM</th>
+                                    <th>STL</th>
+                                    <th>BLK</th>
+                                    <th>TO</th>
+                                    <th class="stats-highlight">PRA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projectionsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
