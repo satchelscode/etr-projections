@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Player Projections</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏀 NBA Player Projections</h1>
+            <p class="subtitle">AI-Powered Statistical Predictions</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Form -->
+            <div class="input-section">
+                <h2>Enter Game Details</h2>
+                
+                <form id="projectionForm">
+                    <div class="form-group">
+                        <label for="player">Player Name</label>
+                        <input type="text" id="player" name="player" list="playersList" placeholder="Start typing player name..." required>
+                        <datalist id="playersList">
+                            {% for player in players %}
+                            <option value="{{ player }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="team">Team</label>
+                            <select id="team" name="team" required>
+                                <option value="">Select Team</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}">{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="opponent">Opponent</label>
+                            <select id="opponent" name="opponent" required>
+                                <option value="">Select Opponent</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}">{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="position">Position</label>
+                            <select id="position" name="position" required>
+                                <option value="PG">PG - Point Guard</option>
+                                <option value="SG" selected>SG - Shooting Guard</option>
+                                <option value="SF">SF - Small Forward</option>
+                                <option value="PF">PF - Power Forward</option>
+                                <option value="C">C - Center</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="minutes">Projected Minutes</label>
+                            <input type="number" id="minutes" name="minutes" min="0" max="48" step="0.5" value="30" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-predict">Generate Projection</button>
+                </form>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2>Projected Stats</h2>
+                
+                <div class="player-info">
+                    <h3 id="playerName"></h3>
+                    <p id="matchupInfo"></p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card highlight">
+                        <div class="stat-label">PRA</div>
+                        <div class="stat-value" id="stat-pra">-</div>
+                        <div class="stat-desc">Points + Rebounds + Assists</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Points</div>
+                        <div class="stat-value" id="stat-points">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Rebounds</div>
+                        <div class="stat-value" id="stat-rebounds">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Assists</div>
+                        <div class="stat-value" id="stat-assists">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">3-Pointers</div>
+                        <div class="stat-value" id="stat-threes">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Steals</div>
+                        <div class="stat-value" id="stat-steals">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Blocks</div>
+                        <div class="stat-value" id="stat-blocks">-</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Turnovers</div>
+                        <div class="stat-value" id="stat-turnovers">-</div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <p>💡 Projections are based on historical performance, opponent defense, and expected playing time.</p>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading" id="loadingSpinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Calculating projections...</p>
+            </div>
+
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage" style="display: none;"></div>
+        </div>
+
+        <footer>
+            <p>Powered by Machine Learning | Training Data: 3,300+ Historical Projections</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
