@@ -1,10 +1,13 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import numpy as np
 import pickle
 import os
+from io import StringIO, BytesIO
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 class NBAProjectionSystem:
     def __init__(self):
@@ -23,19 +26,15 @@ class NBAProjectionSystem:
     def load_models(self):
         """Load all trained models and data"""
         try:
-            # Load models
             with open('models/nba_models.pkl', 'rb') as f:
                 self.models = pickle.load(f)
             
-            # Load opponent adjustments
             self.opponent_adjustments = pd.read_csv('models/opponent_adjustments.csv', index_col=0).to_dict()
             
-            # Load player averages
             player_avg_df = pd.read_csv('models/player_averages.csv', index_col=0)
             self.player_averages = player_avg_df.to_dict('index')
             self.players_list = sorted(list(self.player_averages.keys()))
             
-            # Load team averages
             team_avg_df = pd.read_csv('models/team_averages.csv', index_col=0)
             self.team_averages = team_avg_df.to_dict('index')
             self.teams_list = sorted(list(self.team_averages.keys()))
@@ -52,33 +51,28 @@ class NBAProjectionSystem:
         """Create feature vector for prediction"""
         feature_vec = []
         
-        # Player historical averages
         if player_name in self.player_averages:
             for stat in self.stat_columns:
                 feature_vec.append(self.player_averages[player_name].get(stat, 0))
         else:
             feature_vec.extend([0] * len(self.stat_columns))
         
-        # Team averages
         if team in self.team_averages:
             for stat in self.stat_columns:
                 feature_vec.append(self.team_averages[team].get(stat, 0))
         else:
             feature_vec.extend([0] * len(self.stat_columns))
         
-        # Opponent adjustments
         for stat in self.stat_columns:
             if opponent in self.opponent_adjustments[stat]:
                 feature_vec.append(self.opponent_adjustments[stat][opponent])
             else:
                 feature_vec.append(0)
         
-        # Position encoding
         positions = ['PG', 'SG', 'SF', 'PF', 'C']
         for pos in positions:
             feature_vec.append(1 if position == pos else 0)
         
-        # Minutes
         feature_vec.append(minutes)
         
         return np.array([feature_vec])
@@ -90,13 +84,11 @@ class NBAProjectionSystem:
             player_data = master_df[master_df['Player'] == player_name].iloc[0]
             return player_data['Team'], player_data['Position']
         except Exception as e:
-            print(f"Error getting player info for {player_name}: {e}")
             return None, None
     
     def predict(self, player_name, opponent, minutes):
-        """Make prediction for a player - team and position auto-filled"""
+        """Make prediction for a player"""
         try:
-            # Auto-fill team and position from database
             team, position = self.get_player_info(player_name)
             
             if not team or not position:
@@ -127,6 +119,86 @@ class NBAProjectionSystem:
                 'success': False,
                 'error': str(e)
             }
+    
+    def parse_rotowire_csv(self, file_content):
+        """Parse RotoWire CSV to extract player, team, opponent, and minutes"""
+        df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
+        
+        # RotoWire columns: NAME, Team, OPP, Pos, MIN, ...
+        players_data = []
+        for _, row in df.iterrows():
+            if pd.notna(row.get('MIN')) and float(row.get('MIN', 0)) > 0:
+                players_data.append({
+                    'player': row['NAME'],
+                    'team': row['Team'],
+                    'opponent': row['OPP'],
+                    'rotowire_min': float(row['MIN'])
+                })
+        
+        return players_data
+    
+    def parse_basketball_monster_html(self, html_content):
+        """Parse Basketball Monster HTML to extract player and minutes"""
+        soup = BeautifulSoup(html_content, 'html.parser')
+        players_data = {}
+        
+        # Find the table with lineup data
+        table = soup.find('table', {'id': 'lineups'}) or soup.find('table')
+        
+        if table:
+            for row in table.find_all('tr')[1:]:  # Skip header
+                cells = row.find_all('td')
+                if len(cells) >= 2:
+                    player_cell = cells[0]
+                    minutes_cell = cells[1] if len(cells) > 1 else None
+                    
+                    player_name = player_cell.get_text(strip=True)
+                    if minutes_cell:
+                        try:
+                            minutes = float(minutes_cell.get_text(strip=True))
+                            players_data[player_name] = minutes
+                        except:
+                            pass
+        
+        return players_data
+    
+    def generate_daily_projections(self, rotowire_data, basketball_monster_data):
+        """Generate projections for all players"""
+        projections = []
+        
+        for rw_player in rotowire_data:
+            player_name = rw_player['player']
+            opponent = rw_player['opponent']
+            rw_min = rw_player['rotowire_min']
+            
+            # Get Basketball Monster minutes
+            bm_min = basketball_monster_data.get(player_name, rw_min)
+            
+            # Average the two sources
+            avg_minutes = round((rw_min + bm_min) / 2, 1)
+            
+            # Generate projection
+            result = self.predict(player_name, opponent, avg_minutes)
+            
+            if result['success']:
+                proj = result['projections']
+                projections.append({
+                    'player': player_name,
+                    'team': result['team'],
+                    'opponent': opponent,
+                    'position': result['position'],
+                    'minutes': avg_minutes,
+                    'points': proj['Points'],
+                    'rebounds': proj['Rebounds'],
+                    'assists': proj['Assists'],
+                    'three_pointers_made': proj['Three Pointers Made'],
+                    'steals': proj['Steals'],
+                    'blocks': proj['Blocks'],
+                    'turnovers': proj['Turnovers'],
+                    'pra': proj['PRA']
+                })
+        
+        return projections
 
 # Initialize the projection system
 projection_system = NBAProjectionSystem()
@@ -140,7 +212,7 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """API endpoint for predictions"""
+    """API endpoint for single player predictions"""
     try:
         data = request.json
         
@@ -148,7 +220,6 @@ def predict():
         opponent = data.get('opponent')
         minutes = float(data.get('minutes', 30))
         
-        # Only require player and opponent now
         if not player or not opponent:
             return jsonify({
                 'success': False,
@@ -157,6 +228,97 @@ def predict():
         
         result = projection_system.predict(player, opponent, minutes)
         return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/generate_daily', methods=['POST'])
+def generate_daily():
+    """Generate projections for entire day"""
+    try:
+        rotowire_file = request.files.get('rotowire')
+        basketball_monster_file = request.files.get('basketball_monster')
+        
+        if not rotowire_file:
+            return jsonify({
+                'success': False,
+                'error': 'RotoWire CSV file is required'
+            })
+        
+        # Parse RotoWire CSV
+        rotowire_content = rotowire_file.read().decode('utf-8')
+        rotowire_data = projection_system.parse_rotowire_csv(rotowire_content)
+        
+        # Parse Basketball Monster HTML (optional)
+        basketball_monster_data = {}
+        if basketball_monster_file:
+            bm_content = basketball_monster_file.read().decode('utf-8')
+            basketball_monster_data = projection_system.parse_basketball_monster_html(bm_content)
+        
+        # Generate projections
+        projections = projection_system.generate_daily_projections(
+            rotowire_data, 
+            basketball_monster_data
+        )
+        
+        return jsonify({
+            'success': True,
+            'projections': projections,
+            'count': len(projections)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/download_projections', methods=['POST'])
+def download_projections():
+    """Download projections in specified format"""
+    try:
+        data = request.json
+        projections = data.get('projections', [])
+        
+        # Create DataFrame in desired format
+        df_data = []
+        for i, proj in enumerate(projections):
+            df_data.append({
+                'id': i + 1,
+                'name': proj['player'],
+                'first_name': proj['player'].split()[0] if ' ' in proj['player'] else proj['player'],
+                'last_name': proj['player'].split()[-1] if ' ' in proj['player'] else '',
+                'position': proj['position'],
+                'team': proj['team'],
+                'three_pointers_made': proj['three_pointers_made'],
+                'assists': proj['assists'],
+                'blocks': proj['blocks'],
+                'double_double': '',  # Can calculate if needed
+                'points': proj['points'],
+                'rebounds': proj['rebounds'],
+                'steals': proj['steals'],
+                'triple_double': '',  # Can calculate if needed
+                'turnovers': proj['turnovers'],
+                'fd_points': '',  # Calculate FanDuel points if needed
+                'dk_points': ''   # Calculate DraftKings points if needed
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Convert to CSV
+        output = BytesIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='nba_daily_projections.csv'
+        )
         
     except Exception as e:
         return jsonify({
@@ -182,4 +344,3 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
