@@ -116,14 +116,18 @@ class NBAProjectionSystem:
     
     def parse_rotowire_csv(self, file_content):
         try:
-            df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
+            # RotoWire has a header row, then the actual column names on row 2
+            df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig', skiprows=1)
             print(f"RotoWire CSV columns: {df.columns.tolist()}")
             print(f"RotoWire CSV shape: {df.shape}")
             
             players_data = []
             for _, row in df.iterrows():
                 try:
+                    # Get the minutes value
                     minutes = float(row.get('MIN', 0))
+                    
+                    # Only include players with minutes > 0
                     if pd.notna(minutes) and minutes > 0:
                         players_data.append({
                             'player': str(row['NAME']).strip(),
@@ -140,6 +144,8 @@ class NBAProjectionSystem:
             
         except Exception as e:
             print(f"Error parsing RotoWire CSV: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def generate_daily_projections(self, rotowire_data):
