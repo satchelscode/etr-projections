@@ -132,47 +132,49 @@ class NBAProjectionSystem:
                 'error': str(e)
             }
     
-    def parse_rotowire_csv(self, file_content):
+    def parse_dfs_projections_csv(self, file_content):
+        """Parse NBA DFS Projections CSV to extract player, team, opponent, and minutes"""
         try:
-            # RotoWire has a header row, then the actual column names on row 2
-            df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig', skiprows=1)
-            print(f"RotoWire CSV columns: {df.columns.tolist()}")
-            print(f"RotoWire CSV shape: {df.shape}")
+            df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
+            print(f"DFS Projections CSV columns: {df.columns.tolist()}")
+            print(f"DFS Projections CSV shape: {df.shape}")
             
             players_data = []
             for _, row in df.iterrows():
                 try:
-                    minutes = float(row.get('MIN', 0))
+                    # Get minutes value
+                    minutes = float(row.get('Minutes', 0))
                     
+                    # Only include players with minutes > 0
                     if pd.notna(minutes) and minutes > 0:
                         players_data.append({
-                            'player': str(row['NAME']).strip(),
+                            'player': str(row['Player']).strip(),
                             'team': str(row['Team']).strip(),
-                            'opponent': str(row['OPP']).strip(),
-                            'rotowire_min': minutes
+                            'opponent': str(row['Opp']).strip(),
+                            'minutes': minutes
                         })
                 except Exception as e:
                     continue
             
-            print(f"Parsed {len(players_data)} players from RotoWire")
+            print(f"Parsed {len(players_data)} players from DFS Projections")
             return players_data
             
         except Exception as e:
-            print(f"Error parsing RotoWire CSV: {e}")
+            print(f"Error parsing DFS Projections CSV: {e}")
             import traceback
             traceback.print_exc()
             return []
     
-    def generate_daily_projections(self, rotowire_data):
+    def generate_daily_projections(self, dfs_data):
         projections = []
         skipped = []
         
-        print(f"Generating projections for {len(rotowire_data)} players...")
+        print(f"Generating projections for {len(dfs_data)} players...")
         
-        for rw_player in rotowire_data:
-            player_name = rw_player['player']
-            opponent = rw_player['opponent']
-            minutes = rw_player['rotowire_min']
+        for player_data in dfs_data:
+            player_name = player_data['player']
+            opponent = player_data['opponent']
+            minutes = player_data['minutes']
             
             result = self.predict(player_name, opponent, minutes)
             
@@ -246,20 +248,20 @@ def generate_daily():
     try:
         print("Received daily generation request")
         
-        rotowire_file = request.files.get('rotowire')
+        dfs_file = request.files.get('dfs_projections')
         
-        if not rotowire_file:
-            return jsonify({'success': False, 'error': 'RotoWire CSV file is required'})
+        if not dfs_file:
+            return jsonify({'success': False, 'error': 'NBA DFS Projections CSV file is required'})
         
-        print(f"Processing file: {rotowire_file.filename}")
+        print(f"Processing file: {dfs_file.filename}")
         
-        rotowire_content = rotowire_file.read().decode('utf-8')
-        rotowire_data = projection_system.parse_rotowire_csv(rotowire_content)
+        dfs_content = dfs_file.read().decode('utf-8')
+        dfs_data = projection_system.parse_dfs_projections_csv(dfs_content)
         
-        if not rotowire_data:
-            return jsonify({'success': False, 'error': 'No valid data found in RotoWire file'})
+        if not dfs_data:
+            return jsonify({'success': False, 'error': 'No valid data found in DFS Projections file'})
         
-        projections = projection_system.generate_daily_projections(rotowire_data)
+        projections = projection_system.generate_daily_projections(dfs_data)
         
         return jsonify({
             'success': True,
