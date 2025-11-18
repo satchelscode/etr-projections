@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,22 +25,24 @@
         }
         .file-input-wrapper label {
             display: inline-block;
-            padding: 10px 20px;
+            padding: 12px 24px;
             background: #667eea;
             color: white;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
+            font-weight: 600;
         }
         .file-input-wrapper label:hover {
             background: #5568d3;
+            transform: translateY(-2px);
         }
         .file-input-wrapper input[type="file"] {
             display: none;
         }
         .file-name {
             display: block;
-            margin-top: 5px;
+            margin-top: 8px;
             font-size: 0.9em;
             color: #666;
         }
@@ -203,25 +204,17 @@
             <!-- Daily Projections Section -->
             <div class="daily-section">
                 <h2>📊 Daily Projections Generator</h2>
-                <p style="color: #666; margin-bottom: 20px;">Upload RotoWire and Basketball Monster files to generate projections for all players</p>
+                <p style="color: #666; margin-bottom: 20px;">Upload NBA DFS Projections CSV to generate all player projections</p>
                 
                 <div class="upload-area">
                     <h3 style="margin-bottom: 20px;">Upload Minute Projections</h3>
                     
                     <div class="file-input-wrapper">
-                        <label for="rotowireFile">
-                            📄 RotoWire CSV (Required)
+                        <label for="dfsFile">
+                            📄 NBA DFS Projections CSV
                         </label>
-                        <input type="file" id="rotowireFile" accept=".csv">
-                        <span class="file-name" id="rotowireFileName">No file selected</span>
-                    </div>
-
-                    <div class="file-input-wrapper">
-                        <label for="basketballMonsterFile">
-                            📄 Basketball Monster HTML (Optional)
-                        </label>
-                        <input type="file" id="basketballMonsterFile" accept=".html">
-                        <span class="file-name" id="basketballMonsterFileName">No file selected</span>
+                        <input type="file" id="dfsFile" accept=".csv">
+                        <span class="file-name" id="dfsFileName">No file selected</span>
                     </div>
 
                     <br><br>
@@ -276,7 +269,7 @@
         </div>
 
         <footer>
-            <p>Powered by Machine Learning | Training Data: 3,300+ Historical Projections</p>
+            <p>Powered by Machine Learning | Training Data: 4,400+ Historical Projections</p>
         </footer>
     </div>
 
