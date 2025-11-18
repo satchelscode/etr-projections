@@ -133,35 +133,50 @@ class NBAProjectionSystem:
             }
     
     def get_typical_team_minutes(self, team):
-        """Get typical minute distribution for a team from player averages"""
+        """Get typical minute distribution for a team from NBA_Master_Stats.csv"""
         try:
             master_df = pd.read_csv('models/NBA_Master_Stats.csv')
+            # Filter for this team and get unique players with their minutes
             team_players = master_df[master_df['Team'] == team].copy()
             
-            # Calculate typical minutes per game based on player averages
+            # Group by player and get their typical minutes (use max or mean across scenarios)
             team_roster = {}
-            for _, player in team_players.iterrows():
-                player_name = player['Player']
-                if player_name in self.player_averages:
-                    # Estimate minutes from their per-game stats (assuming 82 game season)
-                    avg_stats = self.player_averages[player_name]
-                    # Players with higher stats typically play more minutes
-                    # Use PRA as a proxy for minutes (rough estimate)
-                    estimated_mins = min(avg_stats.get('PRA', 0) * 1.5, 38)  # Cap at 38 mins
-                    if estimated_mins >= 15:  # Only significant rotation players
-                        team_roster[player_name] = {
-                            'typical_minutes': estimated_mins,
-                            'stats': avg_stats
+            for player_name in team_players['Player'].unique():
+                player_rows = team_players[team_players['Player'] == player_name]
+                
+                # Use the max minutes across scenarios (represents their typical role)
+                typical_mins = player_rows['Minutes'].max()
+                
+                if typical_mins >= 15 and player_name in self.player_averages:
+                    # Get the row with max minutes for stats
+                    main_row = player_rows.loc[player_rows['Minutes'].idxmax()]
+                    
+                    team_roster[player_name] = {
+                        'typical_minutes': float(typical_mins),
+                        'stats': self.player_averages[player_name],
+                        'master_stats': {
+                            'Points': float(main_row['Points']),
+                            'Rebounds': float(main_row['Rebounds']),
+                            'Assists': float(main_row['Assists']),
+                            'Steals': float(main_row['Steals']),
+                            'Blocks': float(main_row['Blocks']),
+                            'Three Pointers Made': float(main_row['Three Pointers Made'])
                         }
+                    }
             
             return team_roster
         except Exception as e:
             print(f"Error getting typical team minutes: {e}")
+            import traceback
+            traceback.print_exc()
             return {}
     
     def calculate_usage_adjustments(self, team, projected_players_dict):
         """
         Calculate usage adjustments based on missing players
+        
+        When a key player is OUT, the remaining active players ALL get usage boosts
+        even if their minutes don't increase much - they get more touches/opportunities
         
         Args:
             team: Team abbreviation
@@ -177,7 +192,7 @@ class NBAProjectionSystem:
             if not typical_roster:
                 return {}
             
-            # Find significant missing players
+            # Find significant missing players (20+ mins typically)
             missing_players = {}
             for player_name, player_data in typical_roster.items():
                 if player_name not in projected_players_dict and player_data['typical_minutes'] >= 20:
@@ -189,84 +204,90 @@ class NBAProjectionSystem:
             # Calculate total missing production
             total_missing_minutes = sum(p['typical_minutes'] for p in missing_players.values())
             missing_production = {
-                'Points': sum(p['stats'].get('Points', 0) for p in missing_players.values()),
-                'Rebounds': sum(p['stats'].get('Rebounds', 0) for p in missing_players.values()),
-                'Assists': sum(p['stats'].get('Assists', 0) for p in missing_players.values()),
-                'Steals': sum(p['stats'].get('Steals', 0) for p in missing_players.values()),
-                'Blocks': sum(p['stats'].get('Blocks', 0) for p in missing_players.values()),
-                'Three Pointers Made': sum(p['stats'].get('Three Pointers Made', 0) for p in missing_players.values())
+                'Points': sum(p['master_stats'].get('Points', 0) for p in missing_players.values()),
+                'Rebounds': sum(p['master_stats'].get('Rebounds', 0) for p in missing_players.values()),
+                'Assists': sum(p['master_stats'].get('Assists', 0) for p in missing_players.values()),
+                'Steals': sum(p['master_stats'].get('Steals', 0) for p in missing_players.values()),
+                'Blocks': sum(p['master_stats'].get('Blocks', 0) for p in missing_players.values()),
+                'Three Pointers Made': sum(p['master_stats'].get('Three Pointers Made', 0) for p in missing_players.values())
             }
             
             print(f"\n🚨 {team} USAGE ADJUSTMENT:")
             print(f"Missing: {', '.join(missing_players.keys())}")
             print(f"Missing production: {missing_production['Points']:.1f} pts, {missing_production['Rebounds']:.1f} reb, {missing_production['Assists']:.1f} ast")
+            print(f"Missing minutes: {total_missing_minutes:.1f}")
             
-            # Calculate adjustments for active players
+            # Calculate adjustments - distribute to active players based on their role/minutes
             adjustments = {}
-            total_extra_minutes = 0
+            total_active_minutes = sum(projected_players_dict.values())
             
-            # Identify who's getting extra minutes (including new players)
             for player_name, proj_mins in projected_players_dict.items():
+                # Only boost players playing significant minutes (15+)
+                if proj_mins < 15:
+                    continue
+                
+                # Get player's typical data
                 if player_name in typical_roster:
                     # Existing player
-                    typical_mins = typical_roster[player_name]['typical_minutes']
-                    minute_increase = max(0, proj_mins - typical_mins)
-                    
-                    if minute_increase >= 3:  # Significant increase
-                        total_extra_minutes += minute_increase
-                        adjustments[player_name] = {
-                            'minute_increase': minute_increase,
-                            'proj_mins': proj_mins,
-                            'is_replacement': False,
-                            'typical_stats': typical_roster[player_name]['stats']
-                        }
+                    player_data = typical_roster[player_name]
+                    typical_mins = player_data['typical_minutes']
+                    baseline_stats = player_data['stats']
+                    is_replacement = False
                 else:
-                    # New/replacement player getting significant minutes
-                    if proj_mins >= 20:  # They're filling a significant role
-                        total_extra_minutes += proj_mins * 0.7  # Count 70% as "extra" for replacement players
-                        adjustments[player_name] = {
-                            'minute_increase': proj_mins * 0.7,
-                            'proj_mins': proj_mins,
-                            'is_replacement': True,
-                            'typical_stats': None
-                        }
-            
-            # Redistribute production proportionally
-            if total_extra_minutes > 0:
-                for player_name, adj in adjustments.items():
-                    share = adj['minute_increase'] / total_extra_minutes
-                    
-                    # Get baseline stats for this player
-                    if adj['is_replacement']:
-                        # For replacement players, use league average or small baseline
-                        baseline_stats = {
-                            'Points': 8.0,
-                            'Rebounds': 3.0,
-                            'Assists': 2.0,
-                            'Steals': 0.5,
-                            'Blocks': 0.3,
-                            'Three Pointers Made': 1.0
-                        }
+                    # Replacement player (not in typical roster)
+                    typical_mins = 0
+                    baseline_stats = {
+                        'Points': 8.0,
+                        'Rebounds': 3.0,
+                        'Assists': 2.0,
+                        'Steals': 0.5,
+                        'Blocks': 0.3,
+                        'Three Pointers Made': 1.0
+                    }
+                    is_replacement = True
+                
+                # Calculate this player's share of the total active minutes
+                # Players with more minutes get a bigger share of the missing production
+                minute_share = proj_mins / total_active_minutes
+                
+                # Also consider if they're getting extra minutes beyond typical
+                minute_increase = max(0, proj_mins - typical_mins)
+                extra_minute_bonus = minute_increase / total_missing_minutes if total_missing_minutes > 0 else 0
+                
+                # Combined share: base on minutes + bonus for extra minutes
+                total_share = (minute_share * 0.7) + (extra_minute_bonus * 0.3)
+                
+                # Calculate boost multipliers
+                # Higher efficiency for replacement players and those with big minute increases
+                if is_replacement or minute_increase > 5:
+                    efficiency = 0.75
+                else:
+                    efficiency = 0.65
+                
+                multipliers = {}
+                for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
+                    baseline = baseline_stats.get(stat, 1)
+                    if baseline > 0:
+                        # Boost = (share of missing production × efficiency) / baseline
+                        boost = (total_share * missing_production[stat] * efficiency) / baseline
+                        # Cap individual stat boosts at 50%
+                        multipliers[stat] = min(1.0 + boost, 1.5)
                     else:
-                        baseline_stats = adj['typical_stats']
-                    
-                    # Calculate boost multipliers (percentage boosts)
-                    # Replacement players get higher boosts since they're literally replacing the missing player
-                    boost_efficiency = 0.7 if adj['is_replacement'] else 0.6
-                    
-                    adj['multipliers'] = {}
-                    for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
-                        baseline = baseline_stats.get(stat, 1)
-                        if baseline > 0:
-                            boost = (share * missing_production[stat] * boost_efficiency) / baseline
-                            adj['multipliers'][stat] = min(1.0 + boost, 1.5)  # Cap at 50% boost
-                        else:
-                            adj['multipliers'][stat] = 1.0
-                    
-                    if adj['is_replacement']:
-                        print(f"✅ {player_name} (REPLACEMENT): {adj['proj_mins']:.1f} mins (covering {share*100:.1f}% of void)")
-                    else:
-                        print(f"✅ {player_name}: +{adj['minute_increase']:.1f} mins (covering {share*100:.1f}% of void)")
+                        multipliers[stat] = 1.0
+                
+                # Store adjustment data
+                adjustments[player_name] = {
+                    'proj_mins': proj_mins,
+                    'typical_minutes': typical_mins,
+                    'minute_increase': minute_increase,
+                    'is_replacement': is_replacement,
+                    'share': total_share,
+                    'multipliers': multipliers,
+                    'covering_for': list(missing_players.keys())
+                }
+                
+                status = "REPLACEMENT" if is_replacement else f"+{minute_increase:.1f} mins"
+                print(f"✅ {player_name} ({status}): {total_share*100:.1f}% share of production")
             
             return adjustments
             
