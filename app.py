@@ -255,14 +255,16 @@ class NBAProjectionSystem:
                 extra_minute_bonus = minute_increase / total_missing_minutes if total_missing_minutes > 0 else 0
                 
                 # Combined share: base on minutes + bonus for extra minutes
-                total_share = (minute_share * 0.7) + (extra_minute_bonus * 0.3)
+                # 80/20 weighting (adjusted from 70/30 based on 11/18/24 validation)
+                total_share = (minute_share * 0.8) + (extra_minute_bonus * 0.2)
                 
                 # Calculate boost multipliers
                 # Higher efficiency for replacement players and those with big minute increases
+                # Reduced from 0.75/0.65 based on 11/18/24 validation (was over-projecting by 1.24 DK pts)
                 if is_replacement or minute_increase > 5:
-                    efficiency = 0.75
+                    efficiency = 0.68  # Reduced from 0.75
                 else:
-                    efficiency = 0.65
+                    efficiency = 0.58  # Reduced from 0.65
                 
                 multipliers = {}
                 for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
@@ -270,8 +272,8 @@ class NBAProjectionSystem:
                     if baseline > 0:
                         # Boost = (share of missing production × efficiency) / baseline
                         boost = (total_share * missing_production[stat] * efficiency) / baseline
-                        # Cap individual stat boosts at 50%
-                        multipliers[stat] = min(1.0 + boost, 1.5)
+                        # Cap at 40% boost (reduced from 50% based on 11/18/24 validation)
+                        multipliers[stat] = min(1.0 + boost, 1.40)
                     else:
                         multipliers[stat] = 1.0
                 
