@@ -6,8 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMessage = document.getElementById('errorMessage');
 
     // Daily projections
-    const rotowireInput = document.getElementById('rotowireFile');
-    const basketballMonsterInput = document.getElementById('basketballMonsterFile');
+    const dfsInput = document.getElementById('dfsFile');
     const generateDailyBtn = document.getElementById('generateDailyBtn');
     const dailyResults = document.getElementById('dailyResults');
     const projectionsTableBody = document.getElementById('projectionsTableBody');
@@ -16,14 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentProjections = [];
 
     // File name display
-    rotowireInput.addEventListener('change', function(e) {
+    dfsInput.addEventListener('change', function(e) {
         const fileName = e.target.files[0]?.name || 'No file selected';
-        document.getElementById('rotowireFileName').textContent = fileName;
-    });
-
-    basketballMonsterInput.addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name || 'No file selected';
-        document.getElementById('basketballMonsterFileName').textContent = fileName;
+        document.getElementById('dfsFileName').textContent = fileName;
     });
 
     // Single player prediction
@@ -90,19 +84,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Generate daily projections
     generateDailyBtn.addEventListener('click', async function() {
-        const rotowireFile = rotowireInput.files[0];
-        const basketballMonsterFile = basketballMonsterInput.files[0];
+        const dfsFile = dfsInput.files[0];
 
-        if (!rotowireFile) {
-            showError('Please upload the RotoWire CSV file');
+        if (!dfsFile) {
+            showError('Please upload the NBA DFS Projections CSV file');
             return;
         }
 
         const formData = new FormData();
-        formData.append('rotowire', rotowireFile);
-        if (basketballMonsterFile) {
-            formData.append('basketball_monster', basketballMonsterFile);
-        }
+        formData.append('dfs_projections', dfsFile);
 
         errorMessage.style.display = 'none';
         loadingSpinner.style.display = 'block';
