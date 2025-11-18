@@ -134,17 +134,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${proj.team}</td>
                 <td>${proj.opponent}</td>
                 <td>${proj.position}</td>
-                <td>${proj.minutes}</td>
-                <td>${proj.points}</td>
-                <td>${proj.rebounds}</td>
-                <td>${proj.assists}</td>
-                <td>${proj.three_pointers_made}</td>
-                <td>${proj.steals}</td>
-                <td>${proj.blocks}</td>
-                <td>${proj.turnovers}</td>
-                <td class="stats-highlight">${proj.pra}</td>
+                <td>${parseFloat(proj.minutes).toFixed(1)}</td>
+                <td>${parseFloat(proj.points).toFixed(2)}</td>
+                <td>${parseFloat(proj.rebounds).toFixed(2)}</td>
+                <td>${parseFloat(proj.assists).toFixed(2)}</td>
+                <td>${parseFloat(proj.three_pointers_made).toFixed(2)}</td>
+                <td>${parseFloat(proj.steals).toFixed(2)}</td>
+                <td>${parseFloat(proj.blocks).toFixed(2)}</td>
+                <td>${parseFloat(proj.turnovers).toFixed(2)}</td>
+                <td class="stats-highlight">${parseFloat(proj.pra).toFixed(2)}</td>
             `;
             projectionsTableBody.appendChild(row);
+        });
+    }
+
+    // Player search functionality
+    const playerSearch = document.getElementById('playerSearch');
+    if (playerSearch) {
+        playerSearch.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = projectionsTableBody.getElementsByTagName('tr');
+            
+            Array.from(rows).forEach(row => {
+                const playerName = row.cells[0].textContent.toLowerCase();
+                if (playerName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     }
 
