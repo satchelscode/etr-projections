@@ -5,6 +5,7 @@ import pickle
 import gzip
 import os
 import math
+import json
 from io import StringIO, BytesIO
 
 app = Flask(__name__)
@@ -23,6 +24,7 @@ class NBAProjectionSystem:
             'Turnovers', 'Steals', 'Blocks', 'PRA'
         ]
         self.load_models()
+        self.team_caps = self.load_learned_caps()
     
     def load_models(self):
         try:
@@ -228,23 +230,34 @@ class NBAProjectionSystem:
             traceback.print_exc()
             return {}
     
+
+    def load_learned_caps(self):
+        """Load team-specific caps from learned parameters file"""
+        try:
+            caps_file = 'models/learned_team_caps.json'
+            if os.path.exists(caps_file):
+                with open(caps_file, 'r') as f:
+                    params = json.load(f)
+                    team_caps = {team: data['cap'] for team, data in params['team_caps'].items()}
+                    print(f"✅ Loaded learned caps for {len(team_caps)} teams (validation #{params['validation_count']})")
+                    return team_caps
+        except Exception as e:
+            print(f"⚠️  Could not load learned caps: {e}")
+        
+        # Fallback to default caps
+        return {
+            'IND': 1.25,  'CLE': 1.25,  # Severe over-projectors
+            'ATL': 1.30, 'BKN': 1.30, 'DAL': 1.30, 'LAC': 1.30, 'LAL': 1.30, 'WAS': 1.30,  # Moderate
+        }
+
     def calculate_usage_adjustments(self, team, projected_players_dict):
         """
         IMPROVED: Calculate usage adjustments with team-specific caps and smarter detection
         Based on 39 days of historical validation data
         """
         
-        # Team-specific boost caps (from Dec 1 validation)
-        TEAM_USAGE_CAPS = {
-            'IND': 1.25,  # Pacers over-project - cap at 25%
-            'CLE': 1.30,  # Cavaliers slightly high - cap at 30%
-            'LAC': 1.30,  # Clippers also need cap
-            'MIL': 1.35,  # Slight cap
-            'default': 1.40  # Other teams keep 40%
-        }
-        
-        # Get team-specific cap
-        max_boost = TEAM_USAGE_CAPS.get(team, TEAM_USAGE_CAPS['default'])
+        # Get team-specific cap from learned parameters (self-updating!)
+        max_boost = self.team_caps.get(team, 1.40)
         
         try:
             typical_roster = self.get_typical_team_minutes(team)
