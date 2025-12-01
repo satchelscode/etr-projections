@@ -84,7 +84,9 @@ class NBAProjectionSystem:
         else:
             feature_vec.extend([0] * len(self.stat_columns))
         
-        for stat in self.stat_columns:
+        # Don't include PRA in opponent adjustments - it's calculated, not allowed
+        opponent_stats = [s for s in self.stat_columns if s != 'PRA']
+        for stat in opponent_stats:
             if opponent in self.opponent_adjustments[stat]:
                 feature_vec.append(self.opponent_adjustments[stat][opponent])
             else:
