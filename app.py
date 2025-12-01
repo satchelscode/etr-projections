@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import numpy as np
 import pickle
+import gzip
 import os
 import math
 from io import StringIO, BytesIO
@@ -25,8 +26,18 @@ class NBAProjectionSystem:
     
     def load_models(self):
         try:
-            with open('models/nba_models.pkl', 'rb') as f:
-                self.models = pickle.load(f)
+            # Try loading compressed model first (smaller, faster)
+            if os.path.exists('models/nba_models.pkl.gz'):
+                print("Loading compressed models...")
+                with gzip.open('models/nba_models.pkl.gz', 'rb') as f:
+                    self.models = pickle.load(f)
+            # Fall back to regular pickle
+            elif os.path.exists('models/nba_models.pkl'):
+                print("Loading standard models...")
+                with open('models/nba_models.pkl', 'rb') as f:
+                    self.models = pickle.load(f)
+            else:
+                raise FileNotFoundError("No model file found (nba_models.pkl.gz or nba_models.pkl)")
             
             self.opponent_adjustments = pd.read_csv('models/opponent_adjustments.csv', index_col=0).to_dict()
             
@@ -103,18 +114,24 @@ class NBAProjectionSystem:
             
             predictions = {}
             for stat in self.stat_columns:
-                rf_pred = self.models[stat]['rf'].predict(X)[0]
-                gb_pred = self.models[stat]['gb'].predict(X)[0]
-                avg_pred = (rf_pred + gb_pred) / 2
+                # Check if model is ensemble or single
+                if isinstance(self.models[stat], dict):
+                    # Old ensemble format (RF + GB)
+                    rf_pred = self.models[stat]['random_forest'].predict(X)[0]
+                    gb_pred = self.models[stat]['gradient_boosting'].predict(X)[0]
+                    pred = (rf_pred + gb_pred) / 2
+                else:
+                    # New single model format (RF only)
+                    pred = self.models[stat].predict(X)[0]
                 
                 # Validate the prediction
-                if not self.is_valid_number(avg_pred):
+                if not self.is_valid_number(pred):
                     return {
                         'success': False,
                         'error': f'Invalid prediction for {stat}'
                     }
                 
-                predictions[stat] = round(float(avg_pred), 2)
+                predictions[stat] = round(float(pred), 2)
             
             return {
                 'success': True,
