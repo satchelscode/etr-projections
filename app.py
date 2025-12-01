@@ -230,26 +230,29 @@ class NBAProjectionSystem:
     
     def calculate_usage_adjustments(self, team, projected_players_dict):
         """
-        Calculate usage adjustments based on missing players
-        
-        When a key player is OUT, the remaining active players ALL get usage boosts
-        even if their minutes don't increase much - they get more touches/opportunities
-        
-        Args:
-            team: Team abbreviation
-            projected_players_dict: Dict of {player_name: projected_minutes}
-        
-        Returns:
-            Dict of {player_name: adjustment_multipliers}
+        IMPROVED: Calculate usage adjustments with team-specific caps and smarter detection
+        Based on 39 days of historical validation data
         """
+        
+        # Team-specific boost caps (from Dec 1 validation)
+        TEAM_USAGE_CAPS = {
+            'IND': 1.25,  # Pacers over-project - cap at 25%
+            'CLE': 1.30,  # Cavaliers slightly high - cap at 30%
+            'LAC': 1.30,  # Clippers also need cap
+            'MIL': 1.35,  # Slight cap
+            'default': 1.40  # Other teams keep 40%
+        }
+        
+        # Get team-specific cap
+        max_boost = TEAM_USAGE_CAPS.get(team, TEAM_USAGE_CAPS['default'])
+        
         try:
-            # Get typical roster
             typical_roster = self.get_typical_team_minutes(team)
             
             if not typical_roster:
                 return {}
             
-            # Find significant missing players (20+ mins typically)
+            # Find significant missing players (20+ mins typically - HIGH/MEDIUM impact only)
             missing_players = {}
             for player_name, player_data in typical_roster.items():
                 if player_name not in projected_players_dict and player_data['typical_minutes'] >= 20:
@@ -269,84 +272,65 @@ class NBAProjectionSystem:
                 'Three Pointers Made': sum(p['master_stats'].get('Three Pointers Made', 0) for p in missing_players.values())
             }
             
-            print(f"\n🚨 {team} USAGE ADJUSTMENT:")
+            print(f"
+🚨 {team} USAGE ADJUSTMENT:")
             print(f"Missing: {', '.join(missing_players.keys())}")
             print(f"Missing production: {missing_production['Points']:.1f} pts, {missing_production['Rebounds']:.1f} reb, {missing_production['Assists']:.1f} ast")
             print(f"Missing minutes: {total_missing_minutes:.1f}")
+            print(f"Team boost cap: {max_boost:.2f} ({int((max_boost-1)*100)}%)")
             
-            # Calculate adjustments - distribute to active players based on their role/minutes
+            # Calculate adjustments for active players
             adjustments = {}
             total_active_minutes = sum(projected_players_dict.values())
             
-            for player_name, proj_mins in projected_players_dict.items():
-                # Only boost players playing significant minutes (15+)
-                if proj_mins < 15:
+            for player_name, projected_mins in projected_players_dict.items():
+                # Skip bench players with <15 projected minutes
+                if projected_mins < 15:
                     continue
                 
-                # Get player's typical data
+                minute_share = projected_mins / total_active_minutes if total_active_minutes > 0 else 0
+                
+                # Extra boost for players getting more minutes than usual
                 if player_name in typical_roster:
-                    # Existing player
-                    player_data = typical_roster[player_name]
-                    typical_mins = player_data['typical_minutes']
-                    baseline_stats = player_data['stats']
-                    is_replacement = False
+                    typical_mins = typical_roster[player_name]['typical_minutes']
+                    extra_minute_boost = max(0, (projected_mins - typical_mins) / typical_mins) if typical_mins > 0 else 0
+                    is_replacement = projected_mins > typical_mins + 5
                 else:
-                    # Replacement player (not in typical roster)
                     typical_mins = 0
-                    baseline_stats = {
-                        'Points': 8.0,
-                        'Rebounds': 3.0,
-                        'Assists': 2.0,
-                        'Steals': 0.5,
-                        'Blocks': 0.3,
-                        'Three Pointers Made': 1.0
-                    }
+                    extra_minute_boost = 0
                     is_replacement = True
                 
-                # Calculate this player's share of the total active minutes
-                # Players with more minutes get a bigger share of the missing production
-                minute_share = proj_mins / total_active_minutes
+                # Combined share
+                total_share = (minute_share * 0.80) + (extra_minute_boost * 0.20)
                 
-                # Also consider if they're getting extra minutes beyond typical
-                minute_increase = max(0, proj_mins - typical_mins)
-                extra_minute_bonus = minute_increase / total_missing_minutes if total_missing_minutes > 0 else 0
+                # Reduced efficiency factors (from validation)
+                efficiency = 0.65 if is_replacement else 0.55
                 
-                # Combined share: base on minutes + bonus for extra minutes
-                # 80/20 weighting (adjusted from 70/30 based on 11/18/24 validation)
-                total_share = (minute_share * 0.8) + (extra_minute_bonus * 0.2)
-                
-                # Calculate boost multipliers
-                # Higher efficiency for replacement players and those with big minute increases
-                # Reduced from 0.75/0.65 based on 11/18/24 validation (was over-projecting by 1.24 DK pts)
-                if is_replacement or minute_increase > 5:
-                    efficiency = 0.68  # Reduced from 0.75
-                else:
-                    efficiency = 0.58  # Reduced from 0.65
-                
+                # Calculate multipliers
                 multipliers = {}
-                for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
-                    baseline = baseline_stats.get(stat, 1)
-                    if baseline > 0:
-                        # Boost = (share of missing production × efficiency) / baseline
-                        boost = (total_share * missing_production[stat] * efficiency) / baseline
-                        # Cap at 40% boost (reduced from 50% based on 11/18/24 validation)
-                        multipliers[stat] = min(1.0 + boost, 1.40)
+                for stat in missing_production.keys():
+                    if player_name in typical_roster:
+                        base = typical_roster[player_name]['master_stats'].get(stat, 0)
                     else:
-                        multipliers[stat] = 1.0
+                        base = 0
+                    
+                    if base > 0:
+                        boost = (missing_production[stat] * total_share * efficiency) / base
+                        multiplier = 1 + boost
+                        # Apply team-specific cap
+                        multiplier = min(multiplier, max_boost)
+                        multipliers[stat] = multiplier
                 
-                # Store adjustment data
-                adjustments[player_name] = {
-                    'proj_mins': proj_mins,
-                    'typical_minutes': typical_mins,
-                    'minute_increase': minute_increase,
-                    'is_replacement': is_replacement,
-                    'share': total_share,
-                    'multipliers': multipliers,
-                    'covering_for': list(missing_players.keys())
-                }
-                
-                status = "REPLACEMENT" if is_replacement else f"+{minute_increase:.1f} mins"
-                print(f"✅ {player_name} ({status}): {total_share*100:.1f}% share of production")
+                # Only add if meaningful boost (>5%)
+                if multipliers and any(m > 1.05 for m in multipliers.values()):
+                    adjustments[player_name] = {
+                        'multipliers': multipliers,
+                        'share': total_share
+                    }
+                    
+                    boost_pct = int((max(multipliers.values()) - 1) * 100)
+                    role = "REPLACEMENT" if is_replacement else f"+{projected_mins-typical_mins:.1f} mins"
+                    print(f"✅ {player_name} ({role}): {total_share*100:.1f}% share of production (max {boost_pct}% boost)")
             
             return adjustments
             
