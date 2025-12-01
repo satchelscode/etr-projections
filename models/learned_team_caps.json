@@ -1,0 +1,126 @@
+{
+  "version": "2.0",
+  "last_updated": "2024-12-01",
+  "validation_date": "Dec 1, 2024",
+  "players_analyzed": 206,
+  "methodology": "Learned from actual ETR vs Our Model comparison",
+  "team_caps": {
+    "ATL": {
+      "cap": 1.3,
+      "avg_error": -2.34,
+      "player_count": 10,
+      "confidence": "high"
+    },
+    "BKN": {
+      "cap": 1.3,
+      "avg_error": -2.0,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "CHA": {
+      "cap": 1.4,
+      "avg_error": -1.2,
+      "player_count": 12,
+      "confidence": "high"
+    },
+    "CHI": {
+      "cap": 1.4,
+      "avg_error": -1.05,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "CLE": {
+      "cap": 1.25,
+      "avg_error": -3.74,
+      "player_count": 10,
+      "confidence": "high"
+    },
+    "DAL": {
+      "cap": 1.3,
+      "avg_error": -1.88,
+      "player_count": 13,
+      "confidence": "high"
+    },
+    "DEN": {
+      "cap": 1.4,
+      "avg_error": -1.01,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "DET": {
+      "cap": 1.4,
+      "avg_error": 0.49,
+      "player_count": 12,
+      "confidence": "high"
+    },
+    "HOU": {
+      "cap": 1.4,
+      "avg_error": -1.38,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "IND": {
+      "cap": 1.25,
+      "avg_error": -4.97,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "LAC": {
+      "cap": 1.3,
+      "avg_error": -2.75,
+      "player_count": 12,
+      "confidence": "high"
+    },
+    "LAL": {
+      "cap": 1.3,
+      "avg_error": -2.41,
+      "player_count": 12,
+      "confidence": "high"
+    },
+    "MIA": {
+      "cap": 1.4,
+      "avg_error": -0.61,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "MIL": {
+      "cap": 1.4,
+      "avg_error": -1.08,
+      "player_count": 10,
+      "confidence": "high"
+    },
+    "ORL": {
+      "cap": 1.4,
+      "avg_error": -0.3,
+      "player_count": 11,
+      "confidence": "high"
+    },
+    "PHX": {
+      "cap": 1.4,
+      "avg_error": -0.9,
+      "player_count": 12,
+      "confidence": "high"
+    },
+    "UTA": {
+      "cap": 1.4,
+      "avg_error": -0.75,
+      "player_count": 13,
+      "confidence": "high"
+    },
+    "WAS": {
+      "cap": 1.3,
+      "avg_error": -2.01,
+      "player_count": 13,
+      "confidence": "high"
+    }
+  },
+  "global_settings": {
+    "default_cap": 1.4,
+    "min_cap": 1.2,
+    "max_cap": 1.45,
+    "efficiency_replacement": 0.65,
+    "efficiency_regular": 0.55,
+    "min_minutes_threshold": 20,
+    "min_projected_minutes": 15
+  }
+}
