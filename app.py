@@ -285,8 +285,7 @@ class NBAProjectionSystem:
                 'Three Pointers Made': sum(p['master_stats'].get('Three Pointers Made', 0) for p in missing_players.values())
             }
             
-            print(f"
-🚨 {team} USAGE ADJUSTMENT:")
+            print(f"\n🚨 {team} USAGE ADJUSTMENT:")
             print(f"Missing: {', '.join(missing_players.keys())}")
             print(f"Missing production: {missing_production['Points']:.1f} pts, {missing_production['Rebounds']:.1f} reb, {missing_production['Assists']:.1f} ast")
             print(f"Missing minutes: {total_missing_minutes:.1f}")
