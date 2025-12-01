@@ -28,31 +28,45 @@ class NBAProjectionSystem:
         try:
             # Try loading compressed model first (smaller, faster)
             if os.path.exists('models/nba_models.pkl.gz'):
-                print("Loading compressed models...")
+                print("📦 Loading compressed models...")
                 with gzip.open('models/nba_models.pkl.gz', 'rb') as f:
                     self.models = pickle.load(f)
+                print(f"✓ Compressed models loaded. Stats: {list(self.models.keys())}")
             # Fall back to regular pickle
             elif os.path.exists('models/nba_models.pkl'):
-                print("Loading standard models...")
+                print("📦 Loading standard models...")
                 with open('models/nba_models.pkl', 'rb') as f:
                     self.models = pickle.load(f)
+                print(f"✓ Standard models loaded. Stats: {list(self.models.keys())}")
             else:
                 raise FileNotFoundError("No model file found (nba_models.pkl.gz or nba_models.pkl)")
             
+            # Check model format
+            for stat in list(self.models.keys())[:2]:
+                if isinstance(self.models[stat], dict):
+                    print(f"   {stat}: Ensemble model (keys: {list(self.models[stat].keys())})")
+                else:
+                    print(f"   {stat}: Single model ({type(self.models[stat]).__name__})")
+            
             self.opponent_adjustments = pd.read_csv('models/opponent_adjustments.csv', index_col=0).to_dict()
+            print(f"✓ Opponent adjustments loaded ({len(self.opponent_adjustments['Points'])} teams)")
             
             player_avg_df = pd.read_csv('models/player_averages.csv', index_col=0)
             self.player_averages = player_avg_df.to_dict('index')
             self.players_list = sorted(list(self.player_averages.keys()))
+            print(f"✓ Player averages loaded ({len(self.player_averages)} players)")
             
             team_avg_df = pd.read_csv('models/team_averages.csv', index_col=0)
             self.team_averages = team_avg_df.to_dict('index')
             self.teams_list = sorted(list(self.team_averages.keys()))
+            print(f"✓ Team averages loaded ({len(self.team_averages)} teams)")
             
-            print("✓ Models loaded successfully")
+            print("✅ All models and data loaded successfully!")
             
         except Exception as e:
-            print(f"Error loading models: {e}")
+            print(f"❌ Error loading models: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def create_feature_vector(self, player_name, team, opponent, position, minutes):
@@ -105,6 +119,7 @@ class NBAProjectionSystem:
             team, position = self.get_player_info(player_name)
             
             if not team or not position:
+                print(f"❌ Could not find team/position for {player_name}")
                 return {
                     'success': False,
                     'error': f'Could not find team/position data for {player_name}'
@@ -114,24 +129,45 @@ class NBAProjectionSystem:
             
             predictions = {}
             for stat in self.stat_columns:
-                # Check if model is ensemble or single
-                if isinstance(self.models[stat], dict):
-                    # Old ensemble format (RF + GB)
-                    rf_pred = self.models[stat]['random_forest'].predict(X)[0]
-                    gb_pred = self.models[stat]['gradient_boosting'].predict(X)[0]
-                    pred = (rf_pred + gb_pred) / 2
-                else:
-                    # New single model format (RF only)
-                    pred = self.models[stat].predict(X)[0]
-                
-                # Validate the prediction
-                if not self.is_valid_number(pred):
+                try:
+                    # Check if model is ensemble or single
+                    if isinstance(self.models[stat], dict):
+                        # Old ensemble format (RF + GB)
+                        if 'random_forest' in self.models[stat]:
+                            rf_pred = self.models[stat]['random_forest'].predict(X)[0]
+                            gb_pred = self.models[stat]['gradient_boosting'].predict(X)[0]
+                            pred = (rf_pred + gb_pred) / 2
+                        elif 'rf' in self.models[stat]:
+                            rf_pred = self.models[stat]['rf'].predict(X)[0]
+                            gb_pred = self.models[stat]['gb'].predict(X)[0]
+                            pred = (rf_pred + gb_pred) / 2
+                        else:
+                            print(f"❌ Unknown dict format for {stat}: {self.models[stat].keys()}")
+                            return {
+                                'success': False,
+                                'error': f'Unknown model format for {stat}'
+                            }
+                    else:
+                        # New single model format (RF only)
+                        pred = self.models[stat].predict(X)[0]
+                    
+                    # Validate the prediction
+                    if not self.is_valid_number(pred):
+                        print(f"❌ Invalid prediction for {stat}: {pred}")
+                        return {
+                            'success': False,
+                            'error': f'Invalid prediction for {stat}'
+                        }
+                    
+                    predictions[stat] = round(float(pred), 2)
+                except Exception as e:
+                    print(f"❌ Error predicting {stat} for {player_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     return {
                         'success': False,
-                        'error': f'Invalid prediction for {stat}'
+                        'error': f'Error predicting {stat}: {str(e)}'
                     }
-                
-                predictions[stat] = round(float(pred), 2)
             
             return {
                 'success': True,
@@ -143,7 +179,9 @@ class NBAProjectionSystem:
                 'projections': predictions
             }
         except Exception as e:
-            print(f"Error in predict for {player_name}: {e}")
+            print(f"❌ Error in predict for {player_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'success': False,
                 'error': str(e)
