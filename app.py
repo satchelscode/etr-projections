@@ -5,65 +5,216 @@ import pickle
 import gzip
 import os
 import math
-import json
-from pattern_matcher import HistoricalPatternMatcher
 from io import StringIO, BytesIO
+import json
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+
+class HistoricalPatternMatcher:
+    """Learns from actual ETR projection patterns in similar situations"""
+    
+    def __init__(self, patterns_file='models/historical_patterns.json'):
+        self.patterns = self.load_patterns(patterns_file)
+    
+    def load_patterns(self, patterns_file):
+        """Load historical injury impact patterns"""
+        try:
+            if os.path.exists(patterns_file):
+                with open(patterns_file, 'r') as f:
+                    patterns = json.load(f)
+                print(f"✅ Loaded historical patterns for {len(patterns)} teams")
+                return patterns
+            else:
+                print(f"⚠️  No patterns file found, using generic adjustments")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load patterns: {e}")
+            return {}
+    
+    def find_similar_situation(self, team, missing_players, active_players):
+        """
+        Find historical games with similar missing player situations
+        Returns dict of {player_name: recommended_multiplier}
+        """
+        if team not in self.patterns:
+            return {}
+        
+        team_patterns = self.patterns[team]
+        adjustments = {}
+        
+        for missing_player in missing_players:
+            if missing_player in team_patterns:
+                teammate_impacts = team_patterns[missing_player]
+                
+                print(f"\n📊 Found historical pattern: {missing_player} OUT")
+                print(f"   Based on {len(teammate_impacts)} teammates analyzed")
+                
+                for active_player in active_players:
+                    if active_player in teammate_impacts:
+                        impact_data = teammate_impacts[active_player]
+                        
+                        with_value = impact_data['with_player']
+                        without_value = impact_data['without_player']
+                        
+                        if with_value > 0:
+                            multiplier = without_value / with_value
+                            multiplier = max(0.90, min(1.50, multiplier))
+                            
+                            if abs(multiplier - 1.0) > 0.03:
+                                if active_player in adjustments:
+                                    adjustments[active_player] = (adjustments[active_player] + multiplier) / 2
+                                else:
+                                    adjustments[active_player] = multiplier
+                                
+                                pct = (multiplier - 1) * 100
+                                confidence = "high" if impact_data.get('sample_size_without', 0) >= 2 else "medium"
+                                print(f"   {active_player}: {multiplier:.3f}x ({pct:+.0f}%) [{confidence} confidence]")
+        
+        return adjustments
+
 
 class NBAProjectionSystem:
     def __init__(self):
-        self.models = None
-        self.opponent_adjustments = None
-        self.player_averages = None
-        self.team_averages = None
-        self.players_list = []
-        self.teams_list = []
-        self.stat_columns = [
-            'Points', 'Assists', 'Rebounds', 'Three Pointers Made',
-            'Turnovers', 'Steals', 'Blocks', 'PRA'
-        ]
+        self.models = {}
+        self.player_averages = {}
+        self.team_averages = {}
+        self.opponent_adjustments = {}
+        self.master_stats = None
+        self.stat_columns = ['Points', 'Assists', 'Rebounds', 'Three Pointers Made',
+                            'Turnovers', 'Steals', 'Blocks', 'PRA']
         self.load_models()
         self.team_caps = self.load_learned_caps()
         self.pattern_matcher = HistoricalPatternMatcher()
     
-    def load_models(self):
+    def load_learned_caps(self):
+        """Load team-specific caps from learned parameters file"""
         try:
-            # Try loading compressed model first (smaller, faster)
-            if os.path.exists('models/nba_models.pkl.gz'):
-                print("📦 Loading compressed models...")
-                with gzip.open('models/nba_models.pkl.gz', 'rb') as f:
-                    self.models = pickle.load(f)
-                print(f"✓ Compressed models loaded. Stats: {list(self.models.keys())}")
-            # Fall back to regular pickle
-            elif os.path.exists('models/nba_models.pkl'):
-                print("📦 Loading standard models...")
-                with open('models/nba_models.pkl', 'rb') as f:
-                    self.models = pickle.load(f)
-                print(f"✓ Standard models loaded. Stats: {list(self.models.keys())}")
+            caps_file = 'models/learned_team_caps.json'
+            if os.path.exists(caps_file):
+                with open(caps_file, 'r') as f:
+                    params = json.load(f)
+                    team_caps = {team: data['cap'] for team, data in params['team_caps'].items()}
+                    print(f"✅ Loaded learned caps for {len(team_caps)} teams (validation #{params['validation_count']})")
+                    return team_caps
+        except Exception as e:
+            print(f"⚠️  Could not load learned caps: {e}")
+        
+        # Fallback to default caps
+        return {
+            'IND': 1.15,  # Reduce from 1.25 based on analysis
+            'CLE': 1.25,
+            'CHA': 1.25,
+            'ATL': 1.30, 
+            'BKN': 1.30, 
+            'DAL': 1.30, 
+            'LAC': 1.30, 
+            'LAL': 1.25,  # Reduce from 1.30
+            'WAS': 1.30,
+        }
+    
+    def load_historical_patterns(self):
+        """Load historical injury impact patterns"""
+        try:
+            patterns_file = 'models/historical_patterns.json'
+            if os.path.exists(patterns_file):
+                with open(patterns_file, 'r') as f:
+                    patterns = json.load(f)
+                print(f"✅ Loaded historical patterns for {len(patterns)} teams")
+                return patterns
             else:
-                raise FileNotFoundError("No model file found (nba_models.pkl.gz or nba_models.pkl)")
+                print(f"⚠️  No historical patterns found, using generic adjustments")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load historical patterns: {e}")
+            return {}
+    
+    def find_historical_pattern(self, team, missing_players, active_players):
+        """Find historical pattern adjustments for this exact situation"""
+        
+        if team not in self.historical_patterns:
+            return {}
+        
+        team_patterns = self.historical_patterns[team]
+        adjustments = {}
+        
+        for missing_player in missing_players:
+            if missing_player in team_patterns:
+                teammate_impacts = team_patterns[missing_player]
+                
+                print(f"\n📊 HISTORICAL PATTERN FOUND: {missing_player} OUT")
+                print(f"   Learning from {len(teammate_impacts)} teammates")
+                
+                for active_player in active_players:
+                    if active_player in teammate_impacts:
+                        impact_data = teammate_impacts[active_player]
+                        
+                        with_value = impact_data['with_player']
+                        without_value = impact_data['without_player']
+                        
+                        if with_value > 0:
+                            multiplier = without_value / with_value
+                            multiplier = max(0.90, min(1.50, multiplier))
+                            
+                            if abs(multiplier - 1.0) > 0.03:
+                                if active_player in adjustments:
+                                    adjustments[active_player] = (adjustments[active_player] + multiplier) / 2
+                                else:
+                                    adjustments[active_player] = multiplier
+                                
+                                pct = (multiplier - 1) * 100
+                                sample_size = impact_data.get('sample_size_without', 0)
+                                confidence = "HIGH" if sample_size >= 2 else "MED"
+                                print(f"   ✅ {active_player}: {multiplier:.3f}x ({pct:+.0f}%) [{confidence}]")
+        
+        return adjustments
+    
+    def load_models(self):
+        """Load ML models and supporting data"""
+        try:
+            print("📦 Loading compressed models...")
             
-            # Check model format
+            # Try compressed first
+            model_path = 'models/nba_models.pkl.gz'
+            if os.path.exists(model_path):
+                with gzip.open(model_path, 'rb') as f:
+                    self.models = pickle.load(f)
+            else:
+                # Fallback to uncompressed
+                model_path = 'models/nba_models.pkl'
+                with open(model_path, 'rb') as f:
+                    self.models = pickle.load(f)
+            
+            print(f"✓ Compressed models loaded. Stats: {list(self.models.keys())}")
             for stat in list(self.models.keys())[:2]:
-                if isinstance(self.models[stat], dict):
-                    print(f"   {stat}: Ensemble model (keys: {list(self.models[stat].keys())})")
-                else:
-                    print(f"   {stat}: Single model ({type(self.models[stat]).__name__})")
+                model_type = type(self.models[stat]).__name__
+                print(f"   {stat}: Single model ({model_type})")
             
-            self.opponent_adjustments = pd.read_csv('models/opponent_adjustments.csv', index_col=0).to_dict()
-            print(f"✓ Opponent adjustments loaded ({len(self.opponent_adjustments['Points'])} teams)")
+            # Load opponent adjustments
+            opp_adj_path = 'models/opponent_adjustments.csv'
+            if os.path.exists(opp_adj_path):
+                opp_df = pd.read_csv(opp_adj_path, index_col=0)
+                self.opponent_adjustments = opp_df.to_dict()
+                print(f"✓ Opponent adjustments loaded ({len(opp_df)} teams)")
             
-            player_avg_df = pd.read_csv('models/player_averages.csv', index_col=0)
-            self.player_averages = player_avg_df.to_dict('index')
-            self.players_list = sorted(list(self.player_averages.keys()))
-            print(f"✓ Player averages loaded ({len(self.player_averages)} players)")
+            # Load player averages
+            player_avg_path = 'models/player_averages.csv'
+            if os.path.exists(player_avg_path):
+                player_df = pd.read_csv(player_avg_path, index_col=0)
+                self.player_averages = player_df.to_dict('index')
+                print(f"✓ Player averages loaded ({len(player_df)} players)")
             
-            team_avg_df = pd.read_csv('models/team_averages.csv', index_col=0)
-            self.team_averages = team_avg_df.to_dict('index')
-            self.teams_list = sorted(list(self.team_averages.keys()))
-            print(f"✓ Team averages loaded ({len(self.team_averages)} teams)")
+            # Load team averages
+            team_avg_path = 'models/team_averages.csv'
+            if os.path.exists(team_avg_path):
+                team_df = pd.read_csv(team_avg_path, index_col=0)
+                self.team_averages = team_df.to_dict('index')
+                print(f"✓ Team averages loaded ({len(team_df)} teams)")
+            
+            # Load master stats
+            master_path = 'models/NBA_Master_Stats.csv'
+            if os.path.exists(master_path):
+                self.master_stats = pd.read_csv(master_path)
             
             print("✅ All models and data loaded successfully!")
             
@@ -71,7 +222,6 @@ class NBAProjectionSystem:
             print(f"❌ Error loading models: {e}")
             import traceback
             traceback.print_exc()
-            raise
     
     def create_feature_vector(self, player_name, team, opponent, position, minutes):
         feature_vec = []
@@ -104,161 +254,89 @@ class NBAProjectionSystem:
         
         return np.array([feature_vec])
     
-    def get_player_info(self, player_name):
-        try:
-            master_df = pd.read_csv('models/NBA_Master_Stats.csv')
-            player_data = master_df[master_df['Player'] == player_name].iloc[0]
-            return player_data['Team'], player_data['Position']
-        except:
-            return None, None
-    
     def is_valid_number(self, value):
-        """Check if value is a valid number (not NaN, not None, not inf)"""
+        """Check if a value is a valid number"""
         if value is None:
             return False
-        if isinstance(value, float):
+        if isinstance(value, (int, float)):
             return not (math.isnan(value) or math.isinf(value))
-        return True
+        return False
     
     def predict(self, player_name, opponent, minutes):
+        """Generate projections for a single player"""
         try:
-            team, position = self.get_player_info(player_name)
+            if player_name not in self.player_averages:
+                return {'success': False, 'error': f'Player {player_name} not found in database'}
             
-            if not team or not position:
-                print(f"❌ Could not find team/position for {player_name}")
-                return {
-                    'success': False,
-                    'error': f'Could not find team/position data for {player_name}'
-                }
+            player_info = self.player_averages[player_name]
+            team = player_info.get('Team', 'UNK')
+            position = player_info.get('Position', 'SG')
             
             X = self.create_feature_vector(player_name, team, opponent, position, minutes)
             
-            predictions = {}
+            projections = {}
+            
             for stat in self.stat_columns:
                 try:
-                    # Check if model is ensemble or single
-                    if isinstance(self.models[stat], dict):
-                        # Old ensemble format (RF + GB)
-                        if 'random_forest' in self.models[stat]:
-                            rf_pred = self.models[stat]['random_forest'].predict(X)[0]
-                            gb_pred = self.models[stat]['gradient_boosting'].predict(X)[0]
-                            pred = (rf_pred + gb_pred) / 2
-                        elif 'rf' in self.models[stat]:
-                            rf_pred = self.models[stat]['rf'].predict(X)[0]
-                            gb_pred = self.models[stat]['gb'].predict(X)[0]
-                            pred = (rf_pred + gb_pred) / 2
-                        else:
-                            print(f"❌ Unknown dict format for {stat}: {self.models[stat].keys()}")
-                            return {
-                                'success': False,
-                                'error': f'Unknown model format for {stat}'
-                            }
-                    else:
-                        # New single model format (RF only)
+                    if stat in self.models:
                         pred = self.models[stat].predict(X)[0]
-                    
-                    # Validate the prediction
-                    if not self.is_valid_number(pred):
-                        print(f"❌ Invalid prediction for {stat}: {pred}")
-                        return {
-                            'success': False,
-                            'error': f'Invalid prediction for {stat}'
-                        }
-                    
-                    predictions[stat] = round(float(pred), 2)
+                        
+                        if self.is_valid_number(pred):
+                            projections[stat] = max(0, pred)
+                        else:
+                            return {'success': False, 'error': f'Invalid prediction for {stat}'}
+                    else:
+                        return {'success': False, 'error': f'No model for {stat}'}
+                        
                 except Exception as e:
                     print(f"❌ Error predicting {stat} for {player_name}: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    return {
-                        'success': False,
-                        'error': f'Error predicting {stat}: {str(e)}'
-                    }
+                    return {'success': False, 'error': f'Prediction error for {stat}: {str(e)}'}
             
             return {
                 'success': True,
-                'player': player_name,
+                'projections': projections,
                 'team': team,
-                'opponent': opponent,
-                'position': position,
-                'minutes': float(minutes),
-                'projections': predictions
+                'position': position
             }
+            
         except Exception as e:
             print(f"❌ Error in predict for {player_name}: {e}")
             import traceback
             traceback.print_exc()
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {'success': False, 'error': str(e)}
     
     def get_typical_team_minutes(self, team):
-        """Get typical minute distribution for a team from NBA_Master_Stats.csv"""
-        try:
-            master_df = pd.read_csv('models/NBA_Master_Stats.csv')
-            # Filter for this team and get unique players with their minutes
-            team_players = master_df[master_df['Team'] == team].copy()
-            
-            # Group by player and get their typical minutes (use max or mean across scenarios)
-            team_roster = {}
-            for player_name in team_players['Player'].unique():
-                player_rows = team_players[team_players['Player'] == player_name]
-                
-                # Use the max minutes across scenarios (represents their typical role)
-                typical_mins = player_rows['Minutes'].max()
-                
-                if typical_mins >= 15 and player_name in self.player_averages:
-                    # Get the row with max minutes for stats
-                    main_row = player_rows.loc[player_rows['Minutes'].idxmax()]
-                    
-                    team_roster[player_name] = {
-                        'typical_minutes': float(typical_mins),
-                        'stats': self.player_averages[player_name],
-                        'master_stats': {
-                            'Points': float(main_row['Points']),
-                            'Rebounds': float(main_row['Rebounds']),
-                            'Assists': float(main_row['Assists']),
-                            'Steals': float(main_row['Steals']),
-                            'Blocks': float(main_row['Blocks']),
-                            'Three Pointers Made': float(main_row['Three Pointers Made'])
-                        }
-                    }
-            
-            return team_roster
-        except Exception as e:
-            print(f"Error getting typical team minutes: {e}")
-            import traceback
-            traceback.print_exc()
+        """Get typical minutes for team's roster from master stats"""
+        if self.master_stats is None:
             return {}
-    
-
-    def load_learned_caps(self):
-        """Load team-specific caps from learned parameters file"""
-        try:
-            caps_file = 'models/learned_team_caps.json'
-            if os.path.exists(caps_file):
-                with open(caps_file, 'r') as f:
-                    params = json.load(f)
-                    team_caps = {team: data['cap'] for team, data in params['team_caps'].items()}
-                    print(f"✅ Loaded learned caps for {len(team_caps)} teams (validation #{params['validation_count']})")
-                    return team_caps
-        except Exception as e:
-            print(f"⚠️  Could not load learned caps: {e}")
         
-        # Fallback to default caps
-        return {
-            'IND': 1.25,  'CLE': 1.25,  # Severe over-projectors
-            'ATL': 1.30, 'BKN': 1.30, 'DAL': 1.30, 'LAC': 1.30, 'LAL': 1.30, 'WAS': 1.30,  # Moderate
-        }
-
+        team_players = self.master_stats[self.master_stats['Team'] == team]
+        
+        typical_roster = {}
+        for player in team_players['Player'].unique():
+            player_games = team_players[team_players['Player'] == player]
+            
+            typical_roster[player] = {
+                'typical_minutes': player_games['Minutes'].mean(),
+                'master_stats': {
+                    'Points': player_games['Points'].mean(),
+                    'Rebounds': player_games['Rebounds'].mean(),
+                    'Assists': player_games['Assists'].mean(),
+                    'Steals': player_games['Steals'].mean(),
+                    'Blocks': player_games['Blocks'].mean(),
+                    'Three Pointers Made': player_games['Three Pointers Made'].mean()
+                }
+            }
+        
+        return typical_roster
+    
     def calculate_usage_adjustments(self, team, projected_players_dict):
         """
-        IMPROVED: Calculate usage adjustments with team-specific caps and smarter detection
-        Based on 39 days of historical validation data
+        Calculate usage adjustments using HISTORICAL PATTERNS when available
+        Falls back to generic if no pattern exists
         """
         
-        # Get team-specific cap from learned parameters (self-updating!)
+        # Get team-specific cap
         max_boost = self.team_caps.get(team, 1.40)
         
         try:
@@ -267,7 +345,7 @@ class NBAProjectionSystem:
             if not typical_roster:
                 return {}
             
-            # Find significant missing players (20+ mins typically - HIGH/MEDIUM impact only)
+            # Find significant missing players (20+ mins typically)
             missing_players = {}
             for player_name, player_data in typical_roster.items():
                 if player_name not in projected_players_dict and player_data['typical_minutes'] >= 20:
@@ -275,6 +353,43 @@ class NBAProjectionSystem:
             
             if not missing_players:
                 return {}
+            
+            print(f"\n🚨 {team} USAGE ADJUSTMENT:")
+            print(f"Missing key players: {', '.join(missing_players.keys())}")
+            print(f"Team boost cap: {max_boost:.2f} ({int((max_boost-1)*100)}%)")
+            
+            # TRY HISTORICAL PATTERNS FIRST
+            missing_player_names = list(missing_players.keys())
+            active_player_names = list(projected_players_dict.keys())
+            
+            historical_adjustments = self.pattern_matcher.find_similar_situation(
+                team,
+                missing_player_names,
+                active_player_names
+            )
+            
+            # If we have historical patterns, use them!
+            if historical_adjustments:
+                print(f"✅ Using {len(historical_adjustments)} HISTORICAL PATTERNS")
+                
+                adjustments = {}
+                for player_name, multiplier in historical_adjustments.items():
+                    # Cap the historical multiplier too
+                    multiplier = min(multiplier, max_boost)
+                    
+                    multipliers = {}
+                    for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
+                        multipliers[stat] = multiplier
+                    
+                    adjustments[player_name] = {
+                        'multipliers': multipliers,
+                        'source': 'historical_pattern'
+                    }
+                
+                return adjustments
+            
+            # FALLBACK TO GENERIC if no historical pattern
+            print("⚠️  No historical pattern found, using generic boost")
             
             # Calculate total missing production
             total_missing_minutes = sum(p['typical_minutes'] for p in missing_players.values())
@@ -287,21 +402,8 @@ class NBAProjectionSystem:
                 'Three Pointers Made': sum(p['master_stats'].get('Three Pointers Made', 0) for p in missing_players.values())
             }
             
-            print(f"\n🚨 {team} USAGE ADJUSTMENT:")
-            print(f"Missing: {', '.join(missing_players.keys())}")
             print(f"Missing production: {missing_production['Points']:.1f} pts, {missing_production['Rebounds']:.1f} reb, {missing_production['Assists']:.1f} ast")
             print(f"Missing minutes: {total_missing_minutes:.1f}")
-            print(f"Team boost cap: {max_boost:.2f} ({int((max_boost-1)*100)}%)")
-            
-            # First, try to find historical patterns for this exact situation
-            missing_player_names = list(missing_players.keys())
-            active_player_names = list(projected_players_dict.keys())
-            
-            historical_adjustments = self.pattern_matcher.find_similar_situation(
-                team, 
-                missing_player_names, 
-                active_player_names
-            )
             
             # Calculate adjustments for active players
             adjustments = {}
@@ -327,44 +429,40 @@ class NBAProjectionSystem:
                 # Combined share
                 total_share = (minute_share * 0.80) + (extra_minute_boost * 0.20)
                 
-                # Reduced efficiency factors (from validation)
-                efficiency = 0.65 if is_replacement else 0.55
+                # Updated efficiency factors (from analysis)
+                efficiency = 0.67 if is_replacement else 0.57
+                
+                # Star player boost
+                if projected_mins >= 35:
+                    efficiency *= 1.05
+                    print(f"   ⭐ Star boost: {player_name} ({projected_mins:.0f} mins)")
                 
                 # Calculate multipliers
                 multipliers = {}
-                
-                # Check if we have historical pattern for this player
-                if player_name in historical_adjustments:
-                    # Use historical pattern multiplier
-                    pattern_multiplier = historical_adjustments[player_name]
-                    for stat in missing_production.keys():
-                        multipliers[stat] = pattern_multiplier
-                    print(f"   📊 Using historical pattern for {player_name}: {pattern_multiplier:.2f}x")
-                else:
-                    # Fall back to generic calculation
-                    for stat in missing_production.keys():
-                        if player_name in typical_roster:
-                            base = typical_roster[player_name]['master_stats'].get(stat, 0)
-                        else:
-                            base = 0
-                        
-                        if base > 0:
-                            boost = (missing_production[stat] * total_share * efficiency) / base
-                            multiplier = 1 + boost
-                            # Apply team-specific cap
-                            multiplier = min(multiplier, max_boost)
-                            multipliers[stat] = multiplier
+                for stat in missing_production.keys():
+                    if player_name in typical_roster:
+                        base = typical_roster[player_name]['master_stats'].get(stat, 0)
+                    else:
+                        base = 0
+                    
+                    if base > 0:
+                        boost = (missing_production[stat] * total_share * efficiency) / base
+                        multiplier = 1 + boost
+                        # Apply team-specific cap
+                        multiplier = min(multiplier, max_boost)
+                        multipliers[stat] = multiplier
                 
                 # Only add if meaningful boost (>5%)
                 if multipliers and any(m > 1.05 for m in multipliers.values()):
                     adjustments[player_name] = {
                         'multipliers': multipliers,
-                        'share': total_share
+                        'share': total_share,
+                        'source': 'generic'
                     }
                     
                     boost_pct = int((max(multipliers.values()) - 1) * 100)
                     role = "REPLACEMENT" if is_replacement else f"+{projected_mins-typical_mins:.1f} mins"
-                    print(f"✅ {player_name} ({role}): {total_share*100:.1f}% share of production (max {boost_pct}% boost)")
+                    print(f"✅ {player_name} ({role}): {boost_pct}% boost [GENERIC]")
             
             return adjustments
             
@@ -373,7 +471,7 @@ class NBAProjectionSystem:
             import traceback
             traceback.print_exc()
             return {}
-    
+
     def parse_dfs_projections_csv(self, file_content):
         """Parse NBA DFS Projections CSV to extract player, team, opponent, and minutes"""
         try:
@@ -443,8 +541,9 @@ class NBAProjectionSystem:
                     if player_name in all_adjustments:
                         adjustment = all_adjustments[player_name]
                         multipliers = adjustment.get('multipliers', {})
+                        source = adjustment.get('source', 'unknown')
                         
-                        print(f"\n📈 Boosting {player_name}:")
+                        print(f"\n📈 Boosting {player_name} ({source}):")
                         for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
                             if stat in multipliers and stat in proj:
                                 original = proj[stat]
@@ -488,35 +587,18 @@ class NBAProjectionSystem:
         
         print(f"\nSuccessfully generated {len(projections)} projections")
         print(f"Boosted {sum(1 for p in projections if p.get('usage_boosted', False))} players due to missing teammates")
+        
         if skipped:
-            print(f"Skipped {len(skipped)} players")
+            print(f"\nSkipped {len(skipped)} players")
         
         return projections
 
+# Initialize the projection system
 projection_system = NBAProjectionSystem()
 
 @app.route('/')
 def index():
-    return render_template('index.html', 
-                         players=projection_system.players_list,
-                         teams=projection_system.teams_list)
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    try:
-        data = request.json
-        player = data.get('player')
-        opponent = data.get('opponent')
-        minutes = float(data.get('minutes', 30))
-        
-        if not player or not opponent:
-            return jsonify({'success': False, 'error': 'Missing required fields'})
-        
-        result = projection_system.predict(player, opponent, minutes)
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+    return render_template('index.html')
 
 @app.route('/generate_daily', methods=['POST'])
 def generate_daily():
@@ -553,34 +635,26 @@ def generate_daily():
 @app.route('/download_projections', methods=['POST'])
 def download_projections():
     try:
-        data = request.json
+        data = request.get_json()
         projections = data.get('projections', [])
         
-        df_data = []
-        for i, proj in enumerate(projections):
-            name_parts = proj['player'].split()
-            df_data.append({
-                'id': i + 1,
-                'name': proj['player'],
-                'first_name': name_parts[0] if name_parts else proj['player'],
-                'last_name': name_parts[-1] if len(name_parts) > 1 else '',
-                'position': proj['position'],
-                'team': proj['team'],
-                'three_pointers_made': proj['three_pointers_made'],
-                'assists': proj['assists'],
-                'blocks': proj['blocks'],
-                'double_double': '',
-                'points': proj['points'],
-                'rebounds': proj['rebounds'],
-                'steals': proj['steals'],
-                'triple_double': '',
-                'turnovers': proj['turnovers'],
-                'fd_points': '',
-                'dk_points': ''
-            })
+        if not projections:
+            return jsonify({'success': False, 'error': 'No projections to download'})
         
-        df = pd.DataFrame(df_data)
+        df = pd.DataFrame(projections)
         
+        # Reorder columns
+        column_order = ['player', 'team', 'opponent', 'position', 'minutes',
+                       'points', 'rebounds', 'assists', 'three_pointers_made',
+                       'steals', 'blocks', 'turnovers', 'pra']
+        
+        for col in column_order:
+            if col not in df.columns:
+                df[col] = 0
+        
+        df = df[column_order]
+        
+        # Create CSV
         output = BytesIO()
         df.to_csv(output, index=False)
         output.seek(0)
@@ -593,20 +667,10 @@ def download_projections():
         )
         
     except Exception as e:
+        print(f"Error in download_projections: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/players')
-def get_players():
-    return jsonify(projection_system.players_list)
-
-@app.route('/api/teams')
-def get_teams():
-    return jsonify(projection_system.teams_list)
-
-@app.route('/health')
-def health():
-    return jsonify({'status': 'healthy'})
-
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(debug=True, host='0.0.0.0', port=5000)
