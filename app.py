@@ -6,6 +6,7 @@ import gzip
 import os
 import math
 import json
+from pattern_matcher import HistoricalPatternMatcher
 from io import StringIO, BytesIO
 
 app = Flask(__name__)
@@ -25,6 +26,7 @@ class NBAProjectionSystem:
         ]
         self.load_models()
         self.team_caps = self.load_learned_caps()
+        self.pattern_matcher = HistoricalPatternMatcher()
     
     def load_models(self):
         try:
@@ -291,6 +293,16 @@ class NBAProjectionSystem:
             print(f"Missing minutes: {total_missing_minutes:.1f}")
             print(f"Team boost cap: {max_boost:.2f} ({int((max_boost-1)*100)}%)")
             
+            # First, try to find historical patterns for this exact situation
+            missing_player_names = list(missing_players.keys())
+            active_player_names = list(projected_players_dict.keys())
+            
+            historical_adjustments = self.pattern_matcher.find_similar_situation(
+                team, 
+                missing_player_names, 
+                active_player_names
+            )
+            
             # Calculate adjustments for active players
             adjustments = {}
             total_active_minutes = sum(projected_players_dict.values())
@@ -320,18 +332,28 @@ class NBAProjectionSystem:
                 
                 # Calculate multipliers
                 multipliers = {}
-                for stat in missing_production.keys():
-                    if player_name in typical_roster:
-                        base = typical_roster[player_name]['master_stats'].get(stat, 0)
-                    else:
-                        base = 0
-                    
-                    if base > 0:
-                        boost = (missing_production[stat] * total_share * efficiency) / base
-                        multiplier = 1 + boost
-                        # Apply team-specific cap
-                        multiplier = min(multiplier, max_boost)
-                        multipliers[stat] = multiplier
+                
+                # Check if we have historical pattern for this player
+                if player_name in historical_adjustments:
+                    # Use historical pattern multiplier
+                    pattern_multiplier = historical_adjustments[player_name]
+                    for stat in missing_production.keys():
+                        multipliers[stat] = pattern_multiplier
+                    print(f"   📊 Using historical pattern for {player_name}: {pattern_multiplier:.2f}x")
+                else:
+                    # Fall back to generic calculation
+                    for stat in missing_production.keys():
+                        if player_name in typical_roster:
+                            base = typical_roster[player_name]['master_stats'].get(stat, 0)
+                        else:
+                            base = 0
+                        
+                        if base > 0:
+                            boost = (missing_production[stat] * total_share * efficiency) / base
+                            multiplier = 1 + boost
+                            # Apply team-specific cap
+                            multiplier = min(multiplier, max_boost)
+                            multipliers[stat] = multiplier
                 
                 # Only add if meaningful boost (>5%)
                 if multipliers and any(m > 1.05 for m in multipliers.values()):
