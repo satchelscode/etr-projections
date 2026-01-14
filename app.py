@@ -86,6 +86,7 @@ class NBAProjectionSystem:
         self.load_models()
         self.team_caps = self.load_learned_caps()
         self.pattern_matcher = HistoricalPatternMatcher()
+        self.etr_rates = self.load_etr_rates()
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -112,6 +113,22 @@ class NBAProjectionSystem:
             'LAL': 1.25,  # Reduce from 1.30
             'WAS': 1.30,
         }
+    
+    def load_etr_rates(self):
+        """Load ETR learned per-minute rates from historical projections"""
+        try:
+            rates_file = 'models/etr_learned_rates.json'
+            if os.path.exists(rates_file):
+                with open(rates_file, 'r') as f:
+                    rates = json.load(f)
+                    print(f"✅ Loaded ETR rates for {len(rates)} players")
+                    return rates
+            else:
+                print("⚠️  No ETR rates file found, using ML predictions only")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load ETR rates: {e}")
+            return {}
     
     def load_historical_patterns(self):
         """Load historical injury impact patterns"""
@@ -292,6 +309,9 @@ class NBAProjectionSystem:
                     print(f"❌ Error predicting {stat} for {player_name}: {e}")
                     return {'success': False, 'error': f'Prediction error for {stat}: {str(e)}'}
             
+            # BLEND with ETR learned rates if available
+            projections = self.blend_with_etr_rates(player_name, minutes, projections)
+            
             return {
                 'success': True,
                 'projections': projections,
@@ -304,6 +324,54 @@ class NBAProjectionSystem:
             import traceback
             traceback.print_exc()
             return {'success': False, 'error': str(e)}
+    
+    def blend_with_etr_rates(self, player_name, minutes, ml_projections):
+        """
+        Blend ML predictions with ETR learned per-minute rates.
+        ETR rates are more accurate for per-minute production.
+        """
+        if not hasattr(self, 'etr_rates') or player_name not in self.etr_rates:
+            return ml_projections
+        
+        etr = self.etr_rates[player_name]
+        sample_size = etr.get('sample_size', 0)
+        
+        # Weight ETR rates more if we have more samples
+        if sample_size >= 5:
+            etr_weight = 0.70  # Heavy ETR weight with good sample
+        elif sample_size >= 3:
+            etr_weight = 0.50
+        elif sample_size >= 1:
+            etr_weight = 0.35
+        else:
+            return ml_projections
+        
+        ml_weight = 1 - etr_weight
+        
+        # Blend each stat
+        stat_mapping = {
+            'Points': 'pts_per_min',
+            'Assists': 'ast_per_min',
+            'Rebounds': 'reb_per_min',
+            'Three Pointers Made': '3pm_per_min',
+            'Steals': 'stl_per_min',
+            'Blocks': 'blk_per_min',
+            'Turnovers': 'tov_per_min'
+        }
+        
+        blended = ml_projections.copy()
+        
+        for stat, rate_key in stat_mapping.items():
+            if stat in blended and rate_key in etr:
+                etr_projection = etr[rate_key] * minutes
+                ml_projection = blended[stat]
+                blended[stat] = (etr_weight * etr_projection) + (ml_weight * ml_projection)
+        
+        # Recalculate PRA
+        blended['PRA'] = blended['Points'] + blended['Rebounds'] + blended['Assists']
+        
+        return blended
+    
     
     def get_typical_team_minutes(self, team):
         """Get typical minutes for team's roster from master stats"""
