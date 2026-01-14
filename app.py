@@ -330,14 +330,167 @@ class NBAProjectionSystem:
         
         return typical_roster
     
+    def calculate_assist_redistribution(self, team, projected_players_dict):
+        """
+        NEW METHOD: Specifically handle assist redistribution when star playmakers are OUT
+        
+        This is the KEY FIX for matching ETR projections more closely.
+        When a high-assist player (8+ AST avg) is out, their assists need to be
+        redistributed to teammates, especially the primary ball handler.
+        """
+        
+        # Define high-assist thresholds
+        HIGH_ASSIST_THRESHOLD = 6.0  # Player averages 6+ AST
+        
+        adjustments = {}
+        
+        try:
+            if self.master_stats is None:
+                return {}
+            
+            # Get team's typical roster from master_stats
+            team_data = self.master_stats[self.master_stats['Team'] == team]
+            if team_data.empty:
+                return {}
+            
+            # Calculate player averages from master_stats
+            player_stats = team_data.groupby('Player').agg({
+                'Assists': 'mean',
+                'Points': 'mean',
+                'Rebounds': 'mean',
+                'Position': 'first',
+                'Minutes': 'mean'
+            }).to_dict('index')
+            
+            # Find missing high-assist players
+            missing_playmakers = []
+            
+            for player_name, stats in player_stats.items():
+                player_assists = stats.get('Assists', 0)
+                player_minutes = stats.get('Minutes', 0)
+                
+                # Check if this high-assist player is NOT in projected players tonight
+                if player_assists >= HIGH_ASSIST_THRESHOLD and player_minutes >= 20:
+                    if player_name not in projected_players_dict:
+                        missing_playmakers.append({
+                            'name': player_name,
+                            'assists': player_assists,
+                            'points': stats.get('Points', 0),
+                            'rebounds': stats.get('Rebounds', 0)
+                        })
+            
+            if not missing_playmakers:
+                return {}
+            
+            # Calculate total assists to redistribute
+            total_missing_assists = sum(p['assists'] for p in missing_playmakers)
+            total_missing_points = sum(p['points'] for p in missing_playmakers)
+            total_missing_rebounds = sum(p['rebounds'] for p in missing_playmakers)
+            
+            # Apply efficiency factors (not all production is captured)
+            assist_pool = total_missing_assists * 0.70  # 70% of assists get redistributed
+            points_pool = total_missing_points * 0.55   # 55% of points (efficiency drops)
+            rebounds_pool = total_missing_rebounds * 0.75  # 75% of rebounds
+            
+            print(f"\n🎯 ASSIST REDISTRIBUTION for {team}:")
+            for pm in missing_playmakers:
+                print(f"   ⚠️  {pm['name']} OUT: {pm['assists']:.1f} AST, {pm['points']:.1f} PTS")
+            print(f"   📊 Pool to redistribute: {assist_pool:.1f} AST, {points_pool:.1f} PTS, {rebounds_pool:.1f} REB")
+            
+            # Sort active players by minutes (primary ball handler gets most)
+            active_players = [(name, mins) for name, mins in projected_players_dict.items() if mins >= 15]
+            active_players.sort(key=lambda x: x[1], reverse=True)
+            
+            if not active_players:
+                return {}
+            
+            total_active_minutes = sum(mins for _, mins in active_players)
+            
+            for i, (player_name, projected_mins) in enumerate(active_players):
+                minute_share = projected_mins / total_active_minutes if total_active_minutes > 0 else 0
+                
+                # Get player's position and base stats from master_stats
+                position = player_stats.get(player_name, {}).get('Position', 'SF')
+                base_assists = player_stats.get(player_name, {}).get('Assists', 0)
+                base_points = player_stats.get(player_name, {}).get('Points', 0)
+                base_rebounds = player_stats.get(player_name, {}).get('Rebounds', 0)
+                
+                # If not in team's master stats, try player_averages
+                if base_assists == 0 and player_name in self.player_averages:
+                    base_assists = self.player_averages[player_name].get('Assists', 0)
+                    base_points = self.player_averages[player_name].get('Points', 0)
+                    base_rebounds = self.player_averages[player_name].get('Rebounds', 0)
+                
+                is_guard = position in ['PG', 'SG']
+                is_primary = (i == 0)  # Most minutes = primary
+                is_secondary = (i == 1)
+                
+                # Calculate assist share based on role
+                if is_primary and is_guard:
+                    assist_share = 0.40  # Primary ball handler gets 40%
+                elif is_primary:
+                    assist_share = 0.30  # Primary non-guard gets 30%
+                elif is_secondary and is_guard:
+                    assist_share = 0.25  # Secondary guard gets 25%
+                elif is_secondary:
+                    assist_share = 0.15  # Secondary non-guard gets 15%
+                else:
+                    assist_share = minute_share * 0.5  # Others by minutes
+                
+                # Points and rebounds distributed more evenly by minutes
+                points_share = minute_share
+                rebounds_share = minute_share
+                
+                # Calculate boosts
+                assist_boost = (assist_pool * assist_share) / base_assists if base_assists > 0.5 else 0
+                points_boost = (points_pool * points_share) / base_points if base_points > 1 else 0
+                rebounds_boost = (rebounds_pool * rebounds_share) / base_rebounds if base_rebounds > 1 else 0
+                
+                # Cap the boosts
+                assist_multiplier = min(1.0 + assist_boost, 1.50)  # Max 50% boost
+                points_multiplier = min(1.0 + points_boost, 1.35)  # Max 35% boost
+                rebounds_multiplier = min(1.0 + rebounds_boost, 1.30)  # Max 30% boost
+                
+                # Only add if meaningful boost
+                if assist_multiplier > 1.05 or points_multiplier > 1.05:
+                    adjustments[player_name] = {
+                        'multipliers': {
+                            'Points': points_multiplier,
+                            'Rebounds': rebounds_multiplier,
+                            'Assists': assist_multiplier,
+                            'Steals': min(1.0 + (assist_boost * 0.3), 1.20),
+                            'Blocks': min(1.0 + (rebounds_boost * 0.3), 1.20),
+                            'Three Pointers Made': min(points_multiplier * 0.95, 1.30)
+                        },
+                        'source': 'assist_redistribution'
+                    }
+                    
+                    role = "PRIMARY" if is_primary else ("SECONDARY" if is_secondary else "ROLE")
+                    print(f"   ✅ {player_name} [{role}]: AST {(assist_multiplier-1)*100:+.0f}%, PTS {(points_multiplier-1)*100:+.0f}%")
+            
+            return adjustments
+            
+        except Exception as e:
+            print(f"Error in assist redistribution: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+    
     def calculate_usage_adjustments(self, team, projected_players_dict):
         """
         Calculate usage adjustments using HISTORICAL PATTERNS when available
         Falls back to generic if no pattern exists
+        
+        KEY ENHANCEMENT: Special handling for high-assist playmakers being OUT
         """
         
         # Get team-specific cap
         max_boost = self.team_caps.get(team, 1.40)
+        
+        # FIRST: Check for missing star playmakers and apply assist redistribution
+        assist_adjustments = self.calculate_assist_redistribution(team, projected_players_dict)
+        if assist_adjustments:
+            print(f"📊 Applied assist redistribution for {team}")
         
         try:
             typical_roster = self.get_typical_team_minutes(team)
@@ -463,6 +616,23 @@ class NBAProjectionSystem:
                     boost_pct = int((max(multipliers.values()) - 1) * 100)
                     role = "REPLACEMENT" if is_replacement else f"+{projected_mins-typical_mins:.1f} mins"
                     print(f"✅ {player_name} ({role}): {boost_pct}% boost [GENERIC]")
+            
+            # MERGE: Combine assist redistribution adjustments with generic/historical
+            # Assist redistribution takes priority for the Assists stat
+            for player_name, assist_adj in assist_adjustments.items():
+                if player_name in adjustments:
+                    # Merge: keep higher assist multiplier, average others
+                    existing = adjustments[player_name]['multipliers']
+                    new_assists = assist_adj['multipliers']
+                    
+                    # Take the HIGHER assist multiplier (assist redistribution is usually better)
+                    if new_assists.get('Assists', 1.0) > existing.get('Assists', 1.0):
+                        existing['Assists'] = new_assists['Assists']
+                        adjustments[player_name]['source'] = 'assist_redistribution+generic'
+                        print(f"   🔄 {player_name}: Using assist redistribution AST boost")
+                else:
+                    # Add new adjustment from assist redistribution
+                    adjustments[player_name] = assist_adj
             
             return adjustments
             
