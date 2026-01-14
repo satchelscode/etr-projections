@@ -327,8 +327,8 @@ class NBAProjectionSystem:
     
     def blend_with_etr_rates(self, player_name, minutes, ml_projections):
         """
-        Blend ML predictions with ETR learned per-minute rates.
-        ETR rates are more accurate for per-minute production.
+        Use ETR learned per-minute rates DIRECTLY when available.
+        ETR rates are more accurate than ML predictions.
         """
         if not hasattr(self, 'etr_rates') or player_name not in self.etr_rates:
             return ml_projections
@@ -336,19 +336,11 @@ class NBAProjectionSystem:
         etr = self.etr_rates[player_name]
         sample_size = etr.get('sample_size', 0)
         
-        # Weight ETR rates more if we have more samples
-        if sample_size >= 5:
-            etr_weight = 0.70  # Heavy ETR weight with good sample
-        elif sample_size >= 3:
-            etr_weight = 0.50
-        elif sample_size >= 1:
-            etr_weight = 0.35
-        else:
+        # If we have ETR data, use it 100% (not blended)
+        if sample_size < 1:
             return ml_projections
         
-        ml_weight = 1 - etr_weight
-        
-        # Blend each stat
+        # Use ETR rates directly
         stat_mapping = {
             'Points': 'pts_per_min',
             'Assists': 'ast_per_min',
@@ -359,18 +351,18 @@ class NBAProjectionSystem:
             'Turnovers': 'tov_per_min'
         }
         
-        blended = ml_projections.copy()
+        projections = ml_projections.copy()
         
         for stat, rate_key in stat_mapping.items():
-            if stat in blended and rate_key in etr:
-                etr_projection = etr[rate_key] * minutes
-                ml_projection = blended[stat]
-                blended[stat] = (etr_weight * etr_projection) + (ml_weight * ml_projection)
+            if stat in projections and rate_key in etr:
+                etr_rate = etr[rate_key]
+                if etr_rate > 0:
+                    projections[stat] = etr_rate * minutes
         
         # Recalculate PRA
-        blended['PRA'] = blended['Points'] + blended['Rebounds'] + blended['Assists']
+        projections['PRA'] = projections['Points'] + projections['Rebounds'] + projections['Assists']
         
-        return blended
+        return projections
     
     
     def get_typical_team_minutes(self, team):
