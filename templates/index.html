@@ -372,48 +372,63 @@
                     const playerName = lines[i + 4] || '';
                     const statType = lines[i + 5] || '';
                     
-                    // Skip team totals, first baskets, doubles/triples
+                    // Skip team totals and special props
                     if (playerName.includes('Team Total') || 
-                        playerName.includes('Hawks') || playerName.includes('Knicks') || 
+                        statType.includes('Team Total') ||
+                        statType.includes('Double') || 
+                        statType.includes('First Basket') ||
+                        statType.includes('Triple') ||
+                        playerName.includes('Rockets') || playerName.includes('Thunder') ||
                         playerName.includes('Hornets') || playerName.includes('Lakers') ||
-                        playerName.includes('Warriors') || playerName.includes('Celtics') ||
-                        playerName.includes('Heat') || playerName.includes('Bucks') ||
-                        playerName.includes('Spurs') || playerName.includes('Suns') ||
-                        playerName.includes('Pistons') || playerName.includes('Grizzlies') ||
-                        playerName.includes('Magic') || playerName.includes('Thunder') ||
-                        playerName.includes('Rockets') || playerName.includes('Pacers') ||
-                        playerName.includes('Clippers') || playerName.includes('Mavericks') ||
-                        playerName.includes('Jazz') || playerName.includes('Blazers') ||
-                        playerName.includes('Nets') || playerName.includes('Bulls') ||
-                        playerName.includes('Cavaliers') || playerName.includes('Raptors') ||
-                        playerName.includes('76ers') || playerName.includes('Kings') ||
-                        playerName.includes('Pelicans') || playerName.includes('Timberwolves') ||
-                        playerName.includes('Nuggets') || playerName.includes('Wizards') ||
-                        statType.includes('Double') || statType.includes('First Basket') ||
-                        statType.includes('Triple')) {
+                        playerName.includes('Knicks') || playerName.includes('Warriors') ||
+                        playerName.includes('Hawks') || playerName.includes('Blazers') ||
+                        playerName.includes('Suns') || playerName.includes('Pistons') ||
+                        playerName.includes('Celtics') || playerName.includes('Heat') ||
+                        playerName.includes('Mavericks') || playerName.includes('Jazz') ||
+                        playerName.includes('Grizzlies') || playerName.includes('Magic') ||
+                        playerName.includes('Bucks') || playerName.includes('Spurs')) {
                         i += 6;
                         continue;
                     }
                     
-                    // Look for FD line - scan forward for number patterns
-                    let fdLine = null;
+                    // Format is: date, time, team1, team2, player, stat
+                    // Then 3 sets of: line, over_odds, line, under_odds
+                    // Set 1 = Hold (i+6 to i+9)
+                    // Set 2 = True Line (i+10 to i+13)  
+                    // Set 3 = FD (i+14 to i+17)
                     
-                    for (let j = i + 6; j < Math.min(i + 100, lines.length); j++) {
-                        // Check if we hit the next prop (date pattern)
+                    // Find the end of this prop (next date or end)
+                    let propEnd = lines.length;
+                    for (let j = i + 6; j < lines.length; j++) {
                         if (/^\d{2}\/\d{2}$/.test(lines[j])) {
+                            propEnd = j;
                             break;
                         }
-                        
-                        // Look for line value (number like 30.5, 4.5, etc)
-                        const lineMatch = lines[j].match(/^(\d+\.?\d*)$/);
-                        if (lineMatch) {
-                            const lineVal = parseFloat(lineMatch[1]);
-                            // Sanity check - lines are usually between 0.5 and 50
-                            if (lineVal >= 0.5 && lineVal <= 60) {
-                                fdLine = lineVal;
-                                break;
+                    }
+                    
+                    // Collect all numeric values that look like lines (not odds)
+                    const lineValues = [];
+                    for (let j = i + 6; j < propEnd; j++) {
+                        const val = lines[j];
+                        // Line values are numbers NOT starting with + or -
+                        if (/^\d+\.?\d*$/.test(val)) {
+                            const num = parseFloat(val);
+                            if (num >= 0.5 && num <= 60) {
+                                lineValues.push(num);
                             }
                         }
+                    }
+                    
+                    // FD line should be one of the later values (after Hold and True Line)
+                    // Each book has 2 line values (over line, under line - usually same)
+                    // So FD would be around index 4-5 (0,1 = Hold, 2,3 = True, 4,5 = FD)
+                    let fdLine = null;
+                    if (lineValues.length >= 5) {
+                        fdLine = lineValues[4]; // 5th value is FD over line
+                    } else if (lineValues.length >= 3) {
+                        fdLine = lineValues[2]; // Fallback to 3rd if less data
+                    } else if (lineValues.length >= 1) {
+                        fdLine = lineValues[0]; // Fallback to first
                     }
                     
                     if (playerName && statType && fdLine !== null) {
@@ -424,11 +439,15 @@
                         });
                     }
                     
-                    i += 6;
+                    i = propEnd; // Jump to next prop
                 } else {
                     i++;
                 }
             }
+            
+            console.log('Parsed', props.length, 'props from Betstamp');
+            return props;
+        }
             
             return props;
         }
