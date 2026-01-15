@@ -1,0 +1,40 @@
+{
+  "position_fallback_rates": {
+    "PG": {
+      "pts_per_min": 0.48,
+      "ast_per_min": 0.175,
+      "reb_per_min": 0.126,
+      "3pm_per_min": 0.061
+    },
+    "SG": {
+      "pts_per_min": 0.45,
+      "ast_per_min": 0.107,
+      "reb_per_min": 0.133,
+      "3pm_per_min": 0.069
+    },
+    "SF": {
+      "pts_per_min": 0.44,
+      "ast_per_min": 0.083,
+      "reb_per_min": 0.163,
+      "3pm_per_min": 0.057
+    },
+    "PF": {
+      "pts_per_min": 0.44,
+      "ast_per_min": 0.08,
+      "reb_per_min": 0.205,
+      "3pm_per_min": 0.05
+    },
+    "C": {
+      "pts_per_min": 0.43,
+      "ast_per_min": 0.079,
+      "reb_per_min": 0.292,
+      "3pm_per_min": 0.026
+    }
+  },
+  "sample_size_confidence": {
+    "1_game": 0.5,
+    "2-3_games": 0.75,
+    "4-6_games": 0.9,
+    "7+_games": 1.0
+  }
+}
