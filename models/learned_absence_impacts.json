@@ -1,452 +1,474 @@
 {
   "ATL": {
     "Jalen Johnson": {
-      "Nickeil Alexander-Walker": {
-        "ast_multiplier": 1.054,
-        "pts_multiplier": 1.073,
-        "reb_multiplier": 1.074,
-        "games_with": 5,
-        "games_without": 1
-      },
       "Mouhamed Gueye": {
-        "ast_multiplier": 0.903,
-        "pts_multiplier": 0.916,
-        "reb_multiplier": 1.051,
-        "games_with": 5,
-        "games_without": 1
-      },
-      "Luke Kennard": {
-        "ast_multiplier": 1.129,
-        "pts_multiplier": 1.056,
-        "reb_multiplier": 1.071,
-        "games_with": 5,
-        "games_without": 1
-      },
-      "Zaccharie Risacher": {
-        "ast_multiplier": 1.364,
-        "pts_multiplier": 1.018,
-        "reb_multiplier": 1.209,
-        "games_with": 5,
-        "games_without": 1
-      },
-      "Keaton Wallace": {
-        "ast_multiplier": 1.378,
-        "pts_multiplier": 1.168,
-        "reb_multiplier": 1.167,
-        "games_with": 4,
+        "pts_multiplier": 0.924,
+        "ast_multiplier": 0.897,
+        "reb_multiplier": 1.057,
+        "games_with": 3,
         "games_without": 1
       },
       "Asa Newell": {
-        "ast_multiplier": 1.27,
-        "pts_multiplier": 1.005,
+        "pts_multiplier": 1.0,
+        "ast_multiplier": 1.2,
         "reb_multiplier": 1.0,
-        "games_with": 4,
+        "games_with": 2,
         "games_without": 1
       },
-      "Onyeka Okongwu": {
-        "ast_multiplier": 1.15,
-        "pts_multiplier": 0.945,
-        "reb_multiplier": 1.02,
-        "games_with": 5,
+      "Luke Kennard": {
+        "pts_multiplier": 1.061,
+        "ast_multiplier": 1.134,
+        "reb_multiplier": 1.08,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Nickeil Alexander-Walker": {
+        "pts_multiplier": 1.065,
+        "ast_multiplier": 1.051,
+        "reb_multiplier": 1.084,
+        "games_with": 3,
         "games_without": 1
       },
       "Vit Krejci": {
-        "ast_multiplier": 0.949,
-        "pts_multiplier": 1.144,
-        "reb_multiplier": 1.098,
-        "games_with": 5,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.944,
+        "reb_multiplier": 1.095,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Zaccharie Risacher": {
+        "pts_multiplier": 1.009,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.15,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Onyeka Okongwu": {
+        "pts_multiplier": 0.946,
+        "ast_multiplier": 1.158,
+        "reb_multiplier": 1.018,
+        "games_with": 3,
         "games_without": 1
       },
       "Dyson Daniels": {
-        "ast_multiplier": 1.183,
-        "pts_multiplier": 1.109,
-        "reb_multiplier": 1.117,
-        "games_with": 5,
+        "pts_multiplier": 1.093,
+        "ast_multiplier": 1.198,
+        "reb_multiplier": 1.106,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Keaton Wallace": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.15,
+        "games_with": 2,
         "games_without": 1
       }
     }
   },
-  "BKN": {},
   "CHA": {
     "Brandon Miller": {
-      "Moussa Diabate": {
-        "ast_multiplier": 0.792,
-        "pts_multiplier": 1.101,
-        "reb_multiplier": 1.003,
-        "games_with": 3,
-        "games_without": 3
-      },
-      "Ryan Kalkbrenner": {
-        "ast_multiplier": 1.25,
-        "pts_multiplier": 1.053,
-        "reb_multiplier": 0.954,
-        "games_with": 2,
-        "games_without": 3
-      },
-      "Collin Sexton": {
-        "ast_multiplier": 1.082,
-        "pts_multiplier": 1.086,
-        "reb_multiplier": 0.949,
-        "games_with": 2,
-        "games_without": 3
+      "KJ Simpson": {
+        "pts_multiplier": 1.042,
+        "ast_multiplier": 1.042,
+        "reb_multiplier": 0.9,
+        "games_with": 1,
+        "games_without": 1
       },
       "Tidjane Salaun": {
-        "ast_multiplier": 1.16,
-        "pts_multiplier": 0.874,
-        "reb_multiplier": 1.075,
+        "pts_multiplier": 0.896,
+        "ast_multiplier": 1.099,
+        "reb_multiplier": 1.024,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Kon Knueppel": {
+        "pts_multiplier": 0.992,
+        "ast_multiplier": 0.96,
+        "reb_multiplier": 0.939,
         "games_with": 2,
-        "games_without": 3
+        "games_without": 1
       },
       "Miles Bridges": {
-        "ast_multiplier": 1.041,
-        "pts_multiplier": 1.055,
-        "reb_multiplier": 0.995,
+        "pts_multiplier": 1.064,
+        "ast_multiplier": 0.99,
+        "reb_multiplier": 0.95,
         "games_with": 3,
-        "games_without": 3
+        "games_without": 1
+      },
+      "LaMelo Ball": {
+        "pts_multiplier": 1.023,
+        "ast_multiplier": 0.978,
+        "reb_multiplier": 0.919,
+        "games_with": 3,
+        "games_without": 1
       },
       "Sion James": {
-        "ast_multiplier": 1.073,
-        "pts_multiplier": 1.008,
-        "reb_multiplier": 0.889,
+        "pts_multiplier": 1.056,
+        "ast_multiplier": 1.018,
+        "reb_multiplier": 0.908,
         "games_with": 3,
-        "games_without": 3
+        "games_without": 1
+      },
+      "Collin Sexton": {
+        "pts_multiplier": 1.065,
+        "ast_multiplier": 1.011,
+        "reb_multiplier": 0.932,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Moussa Diabate": {
+        "pts_multiplier": 1.111,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.983,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Antonio Reeves": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.857,
+        "reb_multiplier": 1.0,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Ryan Kalkbrenner": {
+        "pts_multiplier": 1.0,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.9,
+        "games_with": 2,
+        "games_without": 1
       },
       "Liam McNeeley": {
-        "ast_multiplier": 0.968,
-        "pts_multiplier": 1.081,
-        "reb_multiplier": 0.981,
+        "pts_multiplier": 1.046,
+        "ast_multiplier": 0.9,
+        "reb_multiplier": 0.938,
         "games_with": 1,
-        "games_without": 3
+        "games_without": 1
       }
     }
   },
   "CHI": {
     "Josh Giddey": {
-      "Matas Buzelis": {
-        "ast_multiplier": 1.296,
-        "pts_multiplier": 1.213,
-        "reb_multiplier": 1.118,
-        "games_with": 5,
-        "games_without": 2
-      },
-      "Jalen Smith": {
-        "ast_multiplier": 0.961,
-        "pts_multiplier": 0.938,
-        "reb_multiplier": 1.126,
-        "games_with": 2,
-        "games_without": 2
-      },
-      "Dalen Terry": {
-        "ast_multiplier": 1.039,
-        "pts_multiplier": 0.939,
-        "reb_multiplier": 1.209,
-        "games_with": 1,
-        "games_without": 2
-      },
-      "Kevin Huerter": {
-        "ast_multiplier": 1.353,
-        "pts_multiplier": 1.15,
-        "reb_multiplier": 1.186,
-        "games_with": 4,
-        "games_without": 2
-      },
-      "Ayo Dosunmu": {
-        "ast_multiplier": 1.362,
-        "pts_multiplier": 1.074,
-        "reb_multiplier": 1.096,
-        "games_with": 5,
-        "games_without": 2
-      },
-      "Tre Jones": {
-        "ast_multiplier": 1.344,
-        "pts_multiplier": 1.027,
-        "reb_multiplier": 0.955,
-        "games_with": 5,
-        "games_without": 2
-      },
-      "Patrick Williams": {
-        "ast_multiplier": 1.117,
-        "pts_multiplier": 1.031,
-        "reb_multiplier": 1.123,
-        "games_with": 5,
-        "games_without": 2
-      },
-      "Isaac Okoro": {
-        "ast_multiplier": 1.236,
-        "pts_multiplier": 1.059,
-        "reb_multiplier": 0.954,
-        "games_with": 1,
-        "games_without": 2
-      },
-      "Coby White": {
-        "ast_multiplier": 1.432,
-        "pts_multiplier": 1.034,
-        "reb_multiplier": 1.097,
-        "games_with": 1,
-        "games_without": 2
-      },
       "Nikola Vucevic": {
-        "ast_multiplier": 1.35,
-        "pts_multiplier": 0.968,
-        "reb_multiplier": 1.051,
-        "games_with": 5,
-        "games_without": 2
-      }
-    },
-    "Coby White": {
-      "Jalen Smith": {
-        "ast_multiplier": 1.087,
-        "pts_multiplier": 1.259,
-        "reb_multiplier": 0.909,
+        "pts_multiplier": 0.96,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.059,
         "games_with": 3,
         "games_without": 1
       },
       "Dalen Terry": {
-        "ast_multiplier": 0.963,
+        "pts_multiplier": 0.939,
+        "ast_multiplier": 1.039,
+        "reb_multiplier": 1.15,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Isaac Okoro": {
+        "pts_multiplier": 1.059,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.954,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Coby White": {
+        "pts_multiplier": 1.034,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.097,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Jalen Smith": {
+        "pts_multiplier": 0.92,
+        "ast_multiplier": 0.955,
+        "reb_multiplier": 1.127,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Kevin Huerter": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.15,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tre Jones": {
+        "pts_multiplier": 1.027,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.961,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Patrick Williams": {
+        "pts_multiplier": 1.014,
+        "ast_multiplier": 1.105,
+        "reb_multiplier": 1.127,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Ayo Dosunmu": {
+        "pts_multiplier": 1.089,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.099,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Matas Buzelis": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.122,
+        "games_with": 3,
+        "games_without": 1
+      }
+    },
+    "Coby White": {
+      "Nikola Vucevic": {
+        "pts_multiplier": 1.053,
+        "ast_multiplier": 0.885,
+        "reb_multiplier": 1.007,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Dalen Terry": {
         "pts_multiplier": 1.065,
-        "reb_multiplier": 0.827,
+        "ast_multiplier": 0.962,
+        "reb_multiplier": 0.9,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Jalen Smith": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.086,
+        "reb_multiplier": 0.927,
         "games_with": 2,
         "games_without": 1
       },
       "Josh Giddey": {
-        "ast_multiplier": 0.95,
-        "pts_multiplier": 1.055,
-        "reb_multiplier": 1.011,
+        "pts_multiplier": 1.051,
+        "ast_multiplier": 0.96,
+        "reb_multiplier": 1.0,
         "games_with": 1,
-        "games_without": 4
+        "games_without": 2
+      },
+      "Kevin Huerter": {
+        "pts_multiplier": 0.938,
+        "ast_multiplier": 0.854,
+        "reb_multiplier": 0.948,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tre Jones": {
+        "pts_multiplier": 0.96,
+        "ast_multiplier": 0.868,
+        "reb_multiplier": 1.016,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Ayo Dosunmu": {
+        "pts_multiplier": 1.062,
+        "ast_multiplier": 0.861,
+        "reb_multiplier": 0.976,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Matas Buzelis": {
+        "pts_multiplier": 0.96,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.936,
+        "games_with": 2,
+        "games_without": 2
       }
     }
   },
   "CLE": {
     "Darius Garland": {
+      "Thomas Bryant": {
+        "pts_multiplier": 0.943,
+        "ast_multiplier": 0.96,
+        "reb_multiplier": 1.006,
+        "games_with": 1,
+        "games_without": 1
+      },
       "Donovan Mitchell": {
-        "ast_multiplier": 1.172,
-        "pts_multiplier": 1.039,
-        "reb_multiplier": 1.055,
-        "games_with": 4,
-        "games_without": 3
-      },
-      "Evan Mobley": {
-        "ast_multiplier": 1.067,
-        "pts_multiplier": 1.102,
+        "pts_multiplier": 1.016,
+        "ast_multiplier": 1.176,
         "reb_multiplier": 1.047,
-        "games_with": 4,
-        "games_without": 3
-      },
-      "Craig Porter Jr.": {
-        "ast_multiplier": 1.059,
-        "pts_multiplier": 1.166,
-        "reb_multiplier": 0.862,
-        "games_with": 4,
-        "games_without": 3
-      },
-      "Dean Wade": {
-        "ast_multiplier": 1.081,
-        "pts_multiplier": 1.006,
-        "reb_multiplier": 1.021,
-        "games_with": 2,
-        "games_without": 3
+        "games_with": 3,
+        "games_without": 1
       },
       "DeAndre Hunter": {
-        "ast_multiplier": 1.16,
-        "pts_multiplier": 1.182,
-        "reb_multiplier": 0.997,
-        "games_with": 4,
-        "games_without": 3
-      },
-      "NaeQwan Tomlin": {
-        "ast_multiplier": 1.007,
-        "pts_multiplier": 1.081,
-        "reb_multiplier": 0.953,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.156,
+        "reb_multiplier": 1.012,
         "games_with": 3,
-        "games_without": 3
+        "games_without": 1
+      },
+      "Craig Porter Jr.": {
+        "pts_multiplier": 1.107,
+        "ast_multiplier": 1.074,
+        "reb_multiplier": 0.9,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Evan Mobley": {
+        "pts_multiplier": 1.074,
+        "ast_multiplier": 1.082,
+        "reb_multiplier": 1.028,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Dean Wade": {
+        "pts_multiplier": 1.002,
+        "ast_multiplier": 1.116,
+        "reb_multiplier": 1.013,
+        "games_with": 2,
+        "games_without": 1
       },
       "Jaylon Tyson": {
-        "ast_multiplier": 1.156,
-        "pts_multiplier": 0.899,
-        "reb_multiplier": 0.924,
-        "games_with": 4,
-        "games_without": 3
+        "pts_multiplier": 0.9,
+        "ast_multiplier": 1.128,
+        "reb_multiplier": 0.914,
+        "games_with": 3,
+        "games_without": 1
       }
     }
   },
   "DAL": {
     "Anthony Davis": {
-      "Dwight Powell": {
-        "ast_multiplier": 1.142,
-        "pts_multiplier": 1.06,
-        "reb_multiplier": 1.05,
-        "games_with": 3,
-        "games_without": 3
-      },
-      "Jaden Hardy": {
-        "ast_multiplier": 1.077,
-        "pts_multiplier": 0.951,
-        "reb_multiplier": 0.966,
-        "games_with": 1,
-        "games_without": 2
-      },
       "Brandon Williams": {
-        "ast_multiplier": 0.98,
-        "pts_multiplier": 1.084,
-        "reb_multiplier": 1.018,
-        "games_with": 5,
-        "games_without": 3
+        "pts_multiplier": 1.09,
+        "ast_multiplier": 0.995,
+        "reb_multiplier": 0.998,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Dwight Powell": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.08,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Moussa Cisse": {
+        "pts_multiplier": 1.092,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.99,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Klay Thompson": {
+        "pts_multiplier": 1.076,
+        "ast_multiplier": 0.884,
+        "reb_multiplier": 1.059,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Naji Marshall": {
+        "pts_multiplier": 1.098,
+        "ast_multiplier": 0.994,
+        "reb_multiplier": 1.114,
+        "games_with": 3,
+        "games_without": 1
       },
       "Cooper Flagg": {
-        "ast_multiplier": 1.3,
-        "pts_multiplier": 1.215,
-        "reb_multiplier": 1.067,
-        "games_with": 5,
-        "games_without": 3
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.171,
+        "reb_multiplier": 1.096,
+        "games_with": 3,
+        "games_without": 1
       },
-      "Max Christie": {
-        "ast_multiplier": 1.061,
-        "pts_multiplier": 1.042,
-        "reb_multiplier": 1.051,
-        "games_with": 5,
+      "Ryan Nembhard": {
+        "pts_multiplier": 1.064,
+        "ast_multiplier": 1.164,
+        "reb_multiplier": 1.15,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "P.J. Washington": {
+        "pts_multiplier": 1.077,
+        "ast_multiplier": 0.954,
+        "reb_multiplier": 1.075,
+        "games_with": 3,
         "games_without": 1
       },
       "Daniel Gafford": {
-        "ast_multiplier": 1.014,
-        "pts_multiplier": 1.065,
-        "reb_multiplier": 1.078,
-        "games_with": 2,
-        "games_without": 3
-      },
-      "Ryan Nembhard": {
-        "ast_multiplier": 1.232,
-        "pts_multiplier": 1.068,
-        "reb_multiplier": 1.187,
-        "games_with": 5,
-        "games_without": 3
-      },
-      "Naji Marshall": {
-        "ast_multiplier": 1.016,
-        "pts_multiplier": 1.133,
-        "reb_multiplier": 1.044,
-        "games_with": 5,
-        "games_without": 3
-      },
-      "P.J. Washington": {
-        "ast_multiplier": 0.896,
-        "pts_multiplier": 1.044,
-        "reb_multiplier": 1.115,
-        "games_with": 4,
-        "games_without": 3
-      }
-    }
-  },
-  "DEN": {
-    "Nikola Jokic": {
-      "Zeke Nnaji": {
-        "ast_multiplier": 1.468,
-        "pts_multiplier": 1.045,
-        "reb_multiplier": 1.059,
-        "games_with": 7,
-        "games_without": 2
-      },
-      "Peyton Watson": {
-        "ast_multiplier": 1.164,
-        "pts_multiplier": 1.349,
-        "reb_multiplier": 1.1,
-        "games_with": 7,
-        "games_without": 2
-      },
-      "Spencer Jones": {
-        "ast_multiplier": 0.869,
-        "pts_multiplier": 0.968,
-        "reb_multiplier": 1.203,
-        "games_with": 7,
-        "games_without": 2
-      },
-      "Bruce Brown": {
-        "ast_multiplier": 1.072,
-        "pts_multiplier": 0.868,
-        "reb_multiplier": 1.161,
-        "games_with": 7,
-        "games_without": 2
-      },
-      "Tim Hardaway Jr.": {
-        "ast_multiplier": 0.949,
-        "pts_multiplier": 0.983,
-        "reb_multiplier": 1.199,
-        "games_with": 7,
-        "games_without": 2
-      },
-      "Jalen Pickett": {
-        "ast_multiplier": 0.903,
-        "pts_multiplier": 1.063,
-        "reb_multiplier": 1.194,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.088,
+        "reb_multiplier": 1.0,
         "games_with": 3,
-        "games_without": 2
+        "games_without": 1
       },
-      "Jamal Murray": {
-        "ast_multiplier": 1.372,
-        "pts_multiplier": 1.006,
-        "reb_multiplier": 1.233,
-        "games_with": 7,
-        "games_without": 2
+      "Max Christie": {
+        "pts_multiplier": 1.049,
+        "ast_multiplier": 1.086,
+        "reb_multiplier": 1.051,
+        "games_with": 3,
+        "games_without": 1
       }
     }
   },
-  "DET": {},
   "HOU": {
     "Alperen Sengun": {
-      "Kevin Durant": {
-        "ast_multiplier": 1.249,
-        "pts_multiplier": 1.102,
-        "reb_multiplier": 1.118,
-        "games_with": 6,
-        "games_without": 1
-      },
-      "Amen Thompson": {
-        "ast_multiplier": 1.06,
-        "pts_multiplier": 1.142,
-        "reb_multiplier": 1.01,
-        "games_with": 6,
-        "games_without": 1
-      },
-      "Reed Sheppard": {
-        "ast_multiplier": 1.255,
-        "pts_multiplier": 1.043,
-        "reb_multiplier": 1.095,
-        "games_with": 6,
-        "games_without": 1
-      },
-      "Clint Capela": {
-        "ast_multiplier": 1.072,
-        "pts_multiplier": 1.093,
-        "reb_multiplier": 1.057,
-        "games_with": 6,
-        "games_without": 1
-      },
-      "Steven Adams": {
-        "ast_multiplier": 1.242,
-        "pts_multiplier": 0.997,
-        "reb_multiplier": 1.014,
-        "games_with": 3,
-        "games_without": 1
-      },
       "Josh Okogie": {
-        "ast_multiplier": 1.21,
-        "pts_multiplier": 1.001,
-        "reb_multiplier": 1.205,
-        "games_with": 6,
+        "pts_multiplier": 1.012,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.15,
+        "games_with": 4,
         "games_without": 1
       },
       "Tari Eason": {
-        "ast_multiplier": 1.045,
         "pts_multiplier": 1.089,
-        "reb_multiplier": 1.198,
+        "ast_multiplier": 1.045,
+        "reb_multiplier": 1.15,
         "games_with": 1,
         "games_without": 1
       },
+      "Clint Capela": {
+        "pts_multiplier": 1.089,
+        "ast_multiplier": 1.054,
+        "reb_multiplier": 1.063,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Amen Thompson": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.064,
+        "reb_multiplier": 1.018,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Aaron Holiday": {
+        "pts_multiplier": 0.974,
+        "ast_multiplier": 0.986,
+        "reb_multiplier": 0.986,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Kevin Durant": {
+        "pts_multiplier": 1.102,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.128,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Steven Adams": {
+        "pts_multiplier": 0.994,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.012,
+        "games_with": 3,
+        "games_without": 1
+      },
       "Jabari Smith Jr.": {
-        "ast_multiplier": 1.204,
-        "pts_multiplier": 1.03,
-        "reb_multiplier": 1.05,
-        "games_with": 6,
+        "pts_multiplier": 1.034,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.067,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Reed Sheppard": {
+        "pts_multiplier": 1.048,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.108,
+        "games_with": 4,
         "games_without": 1
       }
     }
@@ -454,823 +476,1035 @@
   "IND": {
     "Bennedict Mathurin": {
       "Ben Sheppard": {
-        "ast_multiplier": 0.934,
-        "pts_multiplier": 1.059,
-        "reb_multiplier": 0.954,
-        "games_with": 4,
-        "games_without": 2
+        "pts_multiplier": 1.042,
+        "ast_multiplier": 0.918,
+        "reb_multiplier": 0.978,
+        "games_with": 2,
+        "games_without": 1
       },
       "Aaron Nesmith": {
-        "ast_multiplier": 1.467,
-        "pts_multiplier": 1.159,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
         "reb_multiplier": 1.14,
         "games_with": 1,
-        "games_without": 2
+        "games_without": 1
       },
-      "Jay Huff": {
-        "ast_multiplier": 1.053,
-        "pts_multiplier": 0.938,
-        "reb_multiplier": 0.93,
-        "games_with": 6,
-        "games_without": 2
-      },
-      "Jarace Walker": {
-        "ast_multiplier": 0.959,
-        "pts_multiplier": 1.139,
-        "reb_multiplier": 1.018,
-        "games_with": 6,
-        "games_without": 2
-      },
-      "Micah Potter": {
-        "ast_multiplier": 1.143,
-        "pts_multiplier": 1.335,
-        "reb_multiplier": 1.039,
-        "games_with": 1,
-        "games_without": 2
-      },
-      "Pascal Siakam": {
-        "ast_multiplier": 0.961,
-        "pts_multiplier": 1.072,
-        "reb_multiplier": 1.043,
-        "games_with": 6,
-        "games_without": 2
-      },
-      "Tony Bradley": {
-        "ast_multiplier": 0.802,
-        "pts_multiplier": 0.971,
-        "reb_multiplier": 1.093,
-        "games_with": 6,
-        "games_without": 2
-      },
-      "T.J. McConnell": {
-        "ast_multiplier": 1.063,
-        "pts_multiplier": 1.057,
-        "reb_multiplier": 1.011,
-        "games_with": 6,
-        "games_without": 2
-      },
-      "Andrew Nembhard": {
-        "ast_multiplier": 1.059,
-        "pts_multiplier": 1.078,
-        "reb_multiplier": 1.059,
-        "games_with": 6,
-        "games_without": 2
+      "Quenton Jackson": {
+        "pts_multiplier": 1.016,
+        "ast_multiplier": 0.918,
+        "reb_multiplier": 0.921,
+        "games_with": 2,
+        "games_without": 1
       },
       "Johnny Furphy": {
-        "ast_multiplier": 0.811,
-        "pts_multiplier": 1.144,
-        "reb_multiplier": 1.212,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.15,
         "games_with": 3,
-        "games_without": 2
+        "games_without": 1
+      },
+      "Andrew Nembhard": {
+        "pts_multiplier": 1.076,
+        "ast_multiplier": 1.045,
+        "reb_multiplier": 1.049,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "T.J. McConnell": {
+        "pts_multiplier": 1.051,
+        "ast_multiplier": 1.05,
+        "reb_multiplier": 1.009,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Jarace Walker": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.979,
+        "reb_multiplier": 1.018,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Tony Bradley": {
+        "pts_multiplier": 0.96,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.1,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Pascal Siakam": {
+        "pts_multiplier": 1.07,
+        "ast_multiplier": 0.962,
+        "reb_multiplier": 1.046,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Micah Potter": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.143,
+        "reb_multiplier": 1.039,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Jay Huff": {
+        "pts_multiplier": 0.93,
+        "ast_multiplier": 1.037,
+        "reb_multiplier": 0.94,
+        "games_with": 4,
+        "games_without": 1
       }
     }
   },
   "LAC": {
     "James Harden": {
-      "Kobe Brown": {
-        "ast_multiplier": 1.071,
-        "pts_multiplier": 1.056,
-        "reb_multiplier": 1.008,
-        "games_with": 6,
-        "games_without": 1
-      },
-      "Kris Dunn": {
-        "ast_multiplier": 1.084,
-        "pts_multiplier": 1.056,
-        "reb_multiplier": 0.896,
-        "games_with": 7,
-        "games_without": 1
-      },
-      "Bogdan Bogdanovic": {
-        "ast_multiplier": 1.265,
-        "pts_multiplier": 1.103,
-        "reb_multiplier": 0.999,
-        "games_with": 1,
-        "games_without": 1
-      },
-      "Nicolas Batum": {
-        "ast_multiplier": 1.231,
-        "pts_multiplier": 1.024,
-        "reb_multiplier": 0.941,
-        "games_with": 7,
-        "games_without": 1
-      },
-      "Cam Christie": {
-        "ast_multiplier": 1.25,
-        "pts_multiplier": 1.072,
-        "reb_multiplier": 1.03,
-        "games_with": 2,
+      "Kawhi Leonard": {
+        "pts_multiplier": 0.937,
+        "ast_multiplier": 1.031,
+        "reb_multiplier": 0.981,
+        "games_with": 4,
         "games_without": 1
       },
       "John Collins": {
-        "ast_multiplier": 1.442,
-        "pts_multiplier": 1.042,
-        "reb_multiplier": 0.93,
-        "games_with": 6,
+        "pts_multiplier": 1.046,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.932,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Cam Christie": {
+        "pts_multiplier": 1.069,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.031,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Kobe Sanders": {
+        "pts_multiplier": 0.951,
+        "ast_multiplier": 0.952,
+        "reb_multiplier": 1.079,
+        "games_with": 4,
         "games_without": 1
       },
       "Jordan Miller": {
-        "ast_multiplier": 1.135,
-        "pts_multiplier": 1.013,
-        "reb_multiplier": 0.887,
+        "pts_multiplier": 1.034,
+        "ast_multiplier": 1.118,
+        "reb_multiplier": 0.963,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Kobe Brown": {
+        "pts_multiplier": 1.065,
+        "ast_multiplier": 1.058,
+        "reb_multiplier": 1.005,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Kris Dunn": {
+        "pts_multiplier": 1.074,
+        "ast_multiplier": 1.122,
+        "reb_multiplier": 0.915,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Nicolas Batum": {
+        "pts_multiplier": 1.051,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.943,
+        "games_with": 4,
+        "games_without": 1
+      },
+      "Ivica Zubac": {
+        "pts_multiplier": 0.945,
+        "ast_multiplier": 0.977,
+        "reb_multiplier": 1.032,
         "games_with": 3,
+        "games_without": 1
+      },
+      "Bogdan Bogdanovic": {
+        "pts_multiplier": 1.103,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.999,
+        "games_with": 1,
         "games_without": 1
       }
     }
   },
   "LAL": {
     "Austin Reaves": {
-      "Jaxson Hayes": {
-        "ast_multiplier": 0.961,
-        "pts_multiplier": 1.122,
-        "reb_multiplier": 1.12,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Jake LaRavia": {
-        "ast_multiplier": 1.21,
-        "pts_multiplier": 1.255,
-        "reb_multiplier": 1.108,
-        "games_with": 4,
-        "games_without": 1
-      },
       "Marcus Smart": {
+        "pts_multiplier": 1.13,
         "ast_multiplier": 1.086,
-        "pts_multiplier": 1.182,
         "reb_multiplier": 1.042,
         "games_with": 1,
         "games_without": 1
       },
+      "Jake LaRavia": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.102,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Jaxson Hayes": {
+        "pts_multiplier": 1.121,
+        "ast_multiplier": 0.95,
+        "reb_multiplier": 1.125,
+        "games_with": 2,
+        "games_without": 1
+      },
       "Luka Doncic": {
-        "ast_multiplier": 1.035,
-        "pts_multiplier": 1.195,
-        "reb_multiplier": 1.033,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "LeBron James": {
-        "ast_multiplier": 0.995,
-        "pts_multiplier": 1.151,
-        "reb_multiplier": 0.974,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Maxi Kleber": {
-        "ast_multiplier": 1.0,
-        "pts_multiplier": 1.193,
-        "reb_multiplier": 1.042,
-        "games_with": 3,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.027,
+        "reb_multiplier": 1.017,
+        "games_with": 2,
         "games_without": 1
       },
       "Rui Hachimura": {
-        "ast_multiplier": 1.046,
-        "pts_multiplier": 1.094,
-        "reb_multiplier": 1.147,
-        "games_with": 4,
+        "pts_multiplier": 1.097,
+        "ast_multiplier": 1.079,
+        "reb_multiplier": 1.127,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Maxi Kleber": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.952,
+        "reb_multiplier": 1.042,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "LeBron James": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.003,
+        "reb_multiplier": 0.986,
+        "games_with": 2,
         "games_without": 1
       }
     }
   },
   "MIA": {
     "Tyler Herro": {
-      "Davion Mitchell": {
-        "ast_multiplier": 1.104,
-        "pts_multiplier": 1.039,
-        "reb_multiplier": 0.872,
-        "games_with": 4,
-        "games_without": 2
-      },
       "Bam Adebayo": {
-        "ast_multiplier": 1.075,
-        "pts_multiplier": 1.04,
-        "reb_multiplier": 1.046,
-        "games_with": 4,
+        "pts_multiplier": 1.022,
+        "ast_multiplier": 1.076,
+        "reb_multiplier": 1.052,
+        "games_with": 2,
         "games_without": 2
       },
       "Nikola Jovic": {
-        "ast_multiplier": 1.133,
         "pts_multiplier": 1.056,
+        "ast_multiplier": 1.133,
         "reb_multiplier": 1.067,
         "games_with": 1,
         "games_without": 1
       },
+      "Pelle Larsson": {
+        "pts_multiplier": 1.021,
+        "ast_multiplier": 1.092,
+        "reb_multiplier": 1.006,
+        "games_with": 2,
+        "games_without": 1
+      },
       "Norman Powell": {
+        "pts_multiplier": 1.046,
         "ast_multiplier": 1.044,
-        "pts_multiplier": 1.047,
-        "reb_multiplier": 1.054,
-        "games_with": 3,
+        "reb_multiplier": 1.053,
+        "games_with": 1,
         "games_without": 2
       },
       "Simone Fontecchio": {
-        "ast_multiplier": 1.143,
         "pts_multiplier": 0.897,
+        "ast_multiplier": 1.143,
         "reb_multiplier": 0.969,
         "games_with": 1,
         "games_without": 1
       },
-      "Pelle Larsson": {
-        "ast_multiplier": 1.084,
+      "Kelel Ware": {
+        "pts_multiplier": 0.961,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.958,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Davion Mitchell": {
+        "pts_multiplier": 1.029,
+        "ast_multiplier": 1.12,
+        "reb_multiplier": 0.9,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Andrew Wiggins": {
+        "pts_multiplier": 0.959,
+        "ast_multiplier": 1.036,
+        "reb_multiplier": 0.971,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Dru Smith": {
         "pts_multiplier": 1.032,
-        "reb_multiplier": 1.031,
-        "games_with": 4,
-        "games_without": 1
+        "ast_multiplier": 0.972,
+        "reb_multiplier": 0.908,
+        "games_with": 2,
+        "games_without": 2
       }
     },
     "Norman Powell": {
-      "Davion Mitchell": {
-        "ast_multiplier": 0.9,
-        "pts_multiplier": 1.019,
-        "reb_multiplier": 1.252,
-        "games_with": 5,
+      "Bam Adebayo": {
+        "pts_multiplier": 1.043,
+        "ast_multiplier": 0.945,
+        "reb_multiplier": 0.95,
+        "games_with": 3,
         "games_without": 1
       },
-      "Bam Adebayo": {
-        "ast_multiplier": 0.954,
-        "pts_multiplier": 1.054,
-        "reb_multiplier": 0.956,
-        "games_with": 5,
+      "Nikola Jovic": {
+        "pts_multiplier": 0.947,
+        "ast_multiplier": 0.882,
+        "reb_multiplier": 0.938,
+        "games_with": 1,
         "games_without": 1
       },
       "Jaime Jaquez Jr.": {
-        "ast_multiplier": 1.011,
-        "pts_multiplier": 1.104,
-        "reb_multiplier": 1.136,
-        "games_with": 5,
+        "pts_multiplier": 1.092,
+        "ast_multiplier": 1.014,
+        "reb_multiplier": 1.139,
+        "games_with": 3,
         "games_without": 1
       },
-      "Kelel Ware": {
-        "ast_multiplier": 1.159,
-        "pts_multiplier": 1.138,
-        "reb_multiplier": 1.065,
-        "games_with": 5,
-        "games_without": 1
-      },
-      "Dru Smith": {
-        "ast_multiplier": 0.984,
-        "pts_multiplier": 0.979,
-        "reb_multiplier": 1.098,
-        "games_with": 5,
-        "games_without": 1
-      },
-      "Andrew Wiggins": {
-        "ast_multiplier": 0.938,
-        "pts_multiplier": 1.066,
-        "reb_multiplier": 1.055,
-        "games_with": 5,
+      "Pelle Larsson": {
+        "pts_multiplier": 1.028,
+        "ast_multiplier": 0.932,
+        "reb_multiplier": 1.084,
+        "games_with": 2,
         "games_without": 1
       },
       "Simone Fontecchio": {
-        "ast_multiplier": 0.875,
         "pts_multiplier": 1.115,
+        "ast_multiplier": 0.875,
         "reb_multiplier": 1.032,
         "games_with": 1,
         "games_without": 1
       },
-      "Pelle Larsson": {
-        "ast_multiplier": 0.942,
-        "pts_multiplier": 1.035,
-        "reb_multiplier": 1.095,
-        "games_with": 4,
+      "Tyler Herro": {
+        "pts_multiplier": 1.032,
+        "ast_multiplier": 0.969,
+        "reb_multiplier": 0.989,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Kelel Ware": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.192,
+        "reb_multiplier": 1.068,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Davion Mitchell": {
+        "pts_multiplier": 1.011,
+        "ast_multiplier": 0.888,
+        "reb_multiplier": 1.15,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Andrew Wiggins": {
+        "pts_multiplier": 1.069,
+        "ast_multiplier": 0.938,
+        "reb_multiplier": 1.056,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Dru Smith": {
+        "pts_multiplier": 0.975,
+        "ast_multiplier": 0.992,
+        "reb_multiplier": 1.108,
+        "games_with": 3,
         "games_without": 1
       }
     }
   },
   "MIL": {
     "Giannis Antetokounmpo": {
-      "Kevin Porter Jr.": {
-        "ast_multiplier": 1.045,
-        "pts_multiplier": 1.185,
-        "reb_multiplier": 0.996,
-        "games_with": 5,
-        "games_without": 2
+      "Cole Anthony": {
+        "pts_multiplier": 1.0,
+        "ast_multiplier": 0.929,
+        "reb_multiplier": 1.0,
+        "games_with": 1,
+        "games_without": 1
       },
-      "Bobby Portis": {
-        "ast_multiplier": 1.08,
-        "pts_multiplier": 1.174,
-        "reb_multiplier": 1.065,
-        "games_with": 5,
+      "AJ Green": {
+        "pts_multiplier": 1.047,
+        "ast_multiplier": 1.044,
+        "reb_multiplier": 1.15,
+        "games_with": 3,
         "games_without": 2
       },
       "Gary Harris": {
-        "ast_multiplier": 1.347,
-        "pts_multiplier": 1.058,
-        "reb_multiplier": 1.146,
+        "pts_multiplier": 1.051,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.15,
         "games_with": 2,
         "games_without": 2
       },
-      "Gary Trent Jr.": {
-        "ast_multiplier": 1.242,
-        "pts_multiplier": 1.05,
-        "reb_multiplier": 1.12,
-        "games_with": 5,
+      "Kevin Porter Jr.": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.051,
+        "reb_multiplier": 1.022,
+        "games_with": 3,
         "games_without": 2
       },
       "Myles Turner": {
-        "ast_multiplier": 1.048,
-        "pts_multiplier": 1.064,
-        "reb_multiplier": 1.055,
-        "games_with": 5,
-        "games_without": 2
-      },
-      "AJ Green": {
-        "ast_multiplier": 1.016,
-        "pts_multiplier": 1.033,
-        "reb_multiplier": 1.151,
-        "games_with": 5,
+        "pts_multiplier": 1.083,
+        "ast_multiplier": 1.059,
+        "reb_multiplier": 1.084,
+        "games_with": 3,
         "games_without": 2
       },
       "Ryan Rollins": {
-        "ast_multiplier": 1.064,
-        "pts_multiplier": 1.176,
-        "reb_multiplier": 1.074,
-        "games_with": 5,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.082,
+        "reb_multiplier": 1.091,
+        "games_with": 3,
         "games_without": 2
       },
-      "Jericho Sims": {
-        "ast_multiplier": 0.97,
-        "pts_multiplier": 0.997,
-        "reb_multiplier": 1.051,
-        "games_with": 5,
+      "Gary Trent Jr.": {
+        "pts_multiplier": 1.058,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.128,
+        "games_with": 3,
         "games_without": 2
       },
       "Kyle Kuzma": {
-        "ast_multiplier": 1.077,
-        "pts_multiplier": 1.039,
-        "reb_multiplier": 1.078,
-        "games_with": 5,
+        "pts_multiplier": 1.059,
+        "ast_multiplier": 1.055,
+        "reb_multiplier": 1.095,
+        "games_with": 3,
+        "games_without": 2
+      },
+      "Bobby Portis": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.114,
+        "reb_multiplier": 1.079,
+        "games_with": 3,
         "games_without": 2
       }
     }
   },
   "ORL": {
-    "Franz Wagner": {
+    "Jalen Suggs": {
+      "Jonathan Isaac": {
+        "pts_multiplier": 0.913,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.9,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tristan Da Silva": {
+        "pts_multiplier": 0.948,
+        "ast_multiplier": 0.863,
+        "reb_multiplier": 0.94,
+        "games_with": 2,
+        "games_without": 2
+      },
       "Noah Penda": {
+        "pts_multiplier": 1.005,
         "ast_multiplier": 0.965,
-        "pts_multiplier": 1.003,
-        "reb_multiplier": 1.126,
+        "reb_multiplier": 1.122,
         "games_with": 1,
         "games_without": 2
       },
+      "Jett Howard": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.939,
+        "reb_multiplier": 0.937,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tyus Jones": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.963,
+        "reb_multiplier": 0.922,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Desmond Bane": {
+        "pts_multiplier": 0.942,
+        "ast_multiplier": 0.88,
+        "reb_multiplier": 0.956,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Goga Bitadze": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.942,
+        "games_with": 2,
+        "games_without": 2
+      },
       "Anthony Black": {
-        "ast_multiplier": 1.053,
-        "pts_multiplier": 1.063,
-        "reb_multiplier": 1.008,
-        "games_with": 4,
+        "pts_multiplier": 1.059,
+        "ast_multiplier": 1.052,
+        "reb_multiplier": 1.031,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Wendell Carter Jr.": {
+        "pts_multiplier": 0.969,
+        "ast_multiplier": 0.933,
+        "reb_multiplier": 0.937,
+        "games_with": 2,
+        "games_without": 2
+      }
+    },
+    "Franz Wagner": {
+      "Jonathan Isaac": {
+        "pts_multiplier": 0.913,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.9,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tristan Da Silva": {
+        "pts_multiplier": 0.948,
+        "ast_multiplier": 0.863,
+        "reb_multiplier": 0.94,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Noah Penda": {
+        "pts_multiplier": 1.005,
+        "ast_multiplier": 0.965,
+        "reb_multiplier": 1.122,
+        "games_with": 1,
+        "games_without": 2
+      },
+      "Jett Howard": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.939,
+        "reb_multiplier": 0.937,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Tyus Jones": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.963,
+        "reb_multiplier": 0.922,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Desmond Bane": {
+        "pts_multiplier": 0.942,
+        "ast_multiplier": 0.88,
+        "reb_multiplier": 0.956,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Goga Bitadze": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 0.942,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Anthony Black": {
+        "pts_multiplier": 1.059,
+        "ast_multiplier": 1.052,
+        "reb_multiplier": 1.031,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Wendell Carter Jr.": {
+        "pts_multiplier": 0.969,
+        "ast_multiplier": 0.933,
+        "reb_multiplier": 0.937,
+        "games_with": 2,
         "games_without": 2
       }
     },
     "Paolo Banchero": {
-      "Tyus Jones": {
-        "ast_multiplier": 1.036,
-        "pts_multiplier": 1.145,
-        "reb_multiplier": 1.104,
-        "games_with": 2,
-        "games_without": 4
-      },
-      "Jett Howard": {
-        "ast_multiplier": 1.076,
-        "pts_multiplier": 1.127,
-        "reb_multiplier": 1.064,
-        "games_with": 1,
-        "games_without": 4
-      },
       "Jonathan Isaac": {
-        "ast_multiplier": 1.25,
-        "pts_multiplier": 1.1,
-        "reb_multiplier": 1.124,
+        "pts_multiplier": 1.095,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.129,
         "games_with": 1,
-        "games_without": 4
-      },
-      "Goga Bitadze": {
-        "ast_multiplier": 1.238,
-        "pts_multiplier": 1.24,
-        "reb_multiplier": 1.068,
-        "games_with": 2,
-        "games_without": 4
-      },
-      "Wendell Carter Jr.": {
-        "ast_multiplier": 1.071,
-        "pts_multiplier": 1.039,
-        "reb_multiplier": 1.076,
-        "games_with": 2,
-        "games_without": 4
+        "games_without": 2
       },
       "Tristan Da Silva": {
-        "ast_multiplier": 1.164,
-        "pts_multiplier": 1.066,
+        "pts_multiplier": 1.055,
+        "ast_multiplier": 1.158,
         "reb_multiplier": 1.064,
         "games_with": 2,
-        "games_without": 4
+        "games_without": 2
+      },
+      "Noah Penda": {
+        "pts_multiplier": 0.995,
+        "ast_multiplier": 1.036,
+        "reb_multiplier": 0.9,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Jett Howard": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.065,
+        "reb_multiplier": 1.067,
+        "games_with": 1,
+        "games_without": 2
+      },
+      "Tyus Jones": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.039,
+        "reb_multiplier": 1.085,
+        "games_with": 2,
+        "games_without": 2
       },
       "Desmond Bane": {
-        "ast_multiplier": 1.139,
-        "pts_multiplier": 1.064,
-        "reb_multiplier": 1.044,
+        "pts_multiplier": 1.061,
+        "ast_multiplier": 1.136,
+        "reb_multiplier": 1.046,
         "games_with": 2,
-        "games_without": 4
+        "games_without": 2
+      },
+      "Goga Bitadze": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 1.062,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Anthony Black": {
+        "pts_multiplier": 0.944,
+        "ast_multiplier": 0.95,
+        "reb_multiplier": 0.97,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Wendell Carter Jr.": {
+        "pts_multiplier": 1.033,
+        "ast_multiplier": 1.071,
+        "reb_multiplier": 1.067,
+        "games_with": 2,
+        "games_without": 2
       }
     }
   },
-  "PHX": {},
-  "UTA": {
-    "Lauri Markkanen": {
-      "Keyonte George": {
-        "ast_multiplier": 0.984,
-        "pts_multiplier": 1.245,
-        "reb_multiplier": 1.119,
-        "games_with": 3,
-        "games_without": 3
+  "WAS": {
+    "CJ McCollum": {
+      "Tre Johnson": {
+        "pts_multiplier": 1.109,
+        "ast_multiplier": 1.105,
+        "reb_multiplier": 1.068,
+        "games_with": 2,
+        "games_without": 1
       },
-      "Cody Williams": {
-        "ast_multiplier": 1.028,
-        "pts_multiplier": 1.302,
-        "reb_multiplier": 1.139,
-        "games_with": 3,
-        "games_without": 3
+      "Malaki Branham": {
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.019,
+        "games_with": 2,
+        "games_without": 1
       },
-      "Kyle Filipowski": {
-        "ast_multiplier": 0.947,
-        "pts_multiplier": 1.2,
-        "reb_multiplier": 1.038,
-        "games_with": 3,
-        "games_without": 3
+      "Khris Middleton": {
+        "pts_multiplier": 0.911,
+        "ast_multiplier": 1.05,
+        "reb_multiplier": 0.911,
+        "games_with": 1,
+        "games_without": 1
       },
-      "Ace Bailey": {
-        "ast_multiplier": 0.837,
-        "pts_multiplier": 1.139,
-        "reb_multiplier": 1.024,
-        "games_with": 3,
-        "games_without": 3
-      },
-      "Isaiah Collier": {
-        "ast_multiplier": 1.118,
-        "pts_multiplier": 1.09,
-        "reb_multiplier": 1.039,
-        "games_with": 3,
-        "games_without": 3
-      },
-      "Walter Clayton Jr.": {
-        "ast_multiplier": 1.067,
-        "pts_multiplier": 1.251,
-        "reb_multiplier": 1.073,
-        "games_with": 3,
-        "games_without": 3
-      },
-      "Svi Mykhailiuk": {
-        "ast_multiplier": 1.02,
-        "pts_multiplier": 1.065,
-        "reb_multiplier": 1.148,
+      "Marvin Bagley": {
+        "pts_multiplier": 0.958,
+        "ast_multiplier": 0.987,
+        "reb_multiplier": 0.94,
         "games_with": 3,
         "games_without": 1
       },
-      "Jusuf Nurkic": {
-        "ast_multiplier": 1.158,
-        "pts_multiplier": 1.349,
-        "reb_multiplier": 1.068,
+      "Bub Carrington": {
+        "pts_multiplier": 1.038,
+        "ast_multiplier": 0.939,
+        "reb_multiplier": 0.952,
         "games_with": 3,
-        "games_without": 2
+        "games_without": 1
+      },
+      "Bilal Coulibaly": {
+        "pts_multiplier": 0.991,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.069,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Justin Champagnie": {
+        "pts_multiplier": 1.102,
+        "ast_multiplier": 0.986,
+        "reb_multiplier": 1.021,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Alexandre Sarr": {
+        "pts_multiplier": 0.946,
+        "ast_multiplier": 0.869,
+        "reb_multiplier": 0.955,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Will Riley": {
+        "pts_multiplier": 1.06,
+        "ast_multiplier": 0.897,
+        "reb_multiplier": 0.9,
+        "games_with": 3,
+        "games_without": 1
       }
     }
   },
   "NYK": {
     "Karl-Anthony Towns": {
-      "Ariel Hukporti": {
-        "ast_multiplier": 0.796,
-        "pts_multiplier": 1.061,
-        "reb_multiplier": 1.04,
+      "OG Anunoby": {
+        "pts_multiplier": 1.037,
+        "ast_multiplier": 0.969,
+        "reb_multiplier": 1.15,
         "games_with": 2,
         "games_without": 1
       },
       "Jordan Clarkson": {
-        "ast_multiplier": 1.114,
-        "pts_multiplier": 1.063,
-        "reb_multiplier": 1.236,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Guerschon Yabusele": {
-        "ast_multiplier": 0.8,
-        "pts_multiplier": 0.917,
-        "reb_multiplier": 1.183,
-        "games_with": 1,
-        "games_without": 1
-      },
-      "OG Anunoby": {
-        "ast_multiplier": 1.006,
-        "pts_multiplier": 1.057,
-        "reb_multiplier": 1.213,
+        "pts_multiplier": 1.043,
+        "ast_multiplier": 1.095,
+        "reb_multiplier": 1.15,
         "games_with": 3,
         "games_without": 1
       },
       "Mohamed Diawara": {
-        "ast_multiplier": 0.621,
-        "pts_multiplier": 0.827,
-        "reb_multiplier": 1.199,
+        "pts_multiplier": 0.89,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.15,
         "games_with": 2,
         "games_without": 1
       },
       "Tyler Kolek": {
-        "ast_multiplier": 0.915,
-        "pts_multiplier": 1.056,
-        "reb_multiplier": 0.921,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Mikal Bridges": {
-        "ast_multiplier": 0.929,
-        "pts_multiplier": 1.044,
-        "reb_multiplier": 1.21,
-        "games_with": 4,
+        "pts_multiplier": 1.045,
+        "ast_multiplier": 0.917,
+        "reb_multiplier": 0.936,
+        "games_with": 3,
         "games_without": 1
       },
       "Jalen Brunson": {
-        "ast_multiplier": 0.999,
-        "pts_multiplier": 1.035,
-        "reb_multiplier": 1.127,
-        "games_with": 4,
+        "pts_multiplier": 1.026,
+        "ast_multiplier": 0.977,
+        "reb_multiplier": 1.114,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Mikal Bridges": {
+        "pts_multiplier": 1.031,
+        "ast_multiplier": 0.934,
+        "reb_multiplier": 1.15,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Guerschon Yabusele": {
+        "pts_multiplier": 0.917,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.15,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Ariel Hukporti": {
+        "pts_multiplier": 1.06,
+        "ast_multiplier": 0.85,
+        "reb_multiplier": 1.05,
+        "games_with": 2,
         "games_without": 1
       }
     }
   },
   "POR": {
     "Jerami Grant": {
-      "Rayan Rupert": {
-        "ast_multiplier": 0.989,
-        "pts_multiplier": 1.074,
-        "reb_multiplier": 1.013,
-        "games_with": 2,
+      "Kris Murray": {
+        "pts_multiplier": 1.081,
+        "ast_multiplier": 0.955,
+        "reb_multiplier": 0.9,
+        "games_with": 3,
         "games_without": 1
       },
-      "Kris Murray": {
-        "ast_multiplier": 0.954,
-        "pts_multiplier": 1.08,
-        "reb_multiplier": 0.898,
+      "Toumani Camara": {
+        "pts_multiplier": 1.052,
+        "ast_multiplier": 0.963,
+        "reb_multiplier": 0.958,
         "games_with": 3,
         "games_without": 1
       },
       "Sidy Cissoko": {
-        "ast_multiplier": 0.946,
-        "pts_multiplier": 1.053,
-        "reb_multiplier": 0.971,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Shaedon Sharpe": {
-        "ast_multiplier": 0.932,
-        "pts_multiplier": 1.056,
-        "reb_multiplier": 0.942,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Donovan Clingan": {
-        "ast_multiplier": 0.984,
-        "pts_multiplier": 1.075,
-        "reb_multiplier": 0.943,
-        "games_with": 2,
-        "games_without": 1
-      }
-    }
-  },
-  "SAC": {},
-  "SAS": {
-    "Stephon Castle": {
-      "Devin Vassell": {
-        "ast_multiplier": 1.125,
-        "pts_multiplier": 0.994,
+        "pts_multiplier": 1.057,
+        "ast_multiplier": 0.948,
         "reb_multiplier": 0.974,
         "games_with": 3,
         "games_without": 1
       },
+      "Robert Williams": {
+        "pts_multiplier": 1.039,
+        "ast_multiplier": 0.994,
+        "reb_multiplier": 0.923,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Donovan Clingan": {
+        "pts_multiplier": 1.079,
+        "ast_multiplier": 0.981,
+        "reb_multiplier": 0.945,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Shaedon Sharpe": {
+        "pts_multiplier": 1.057,
+        "ast_multiplier": 0.938,
+        "reb_multiplier": 0.943,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Rayan Rupert": {
+        "pts_multiplier": 1.08,
+        "ast_multiplier": 0.993,
+        "reb_multiplier": 1.013,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Caleb Love": {
+        "pts_multiplier": 0.984,
+        "ast_multiplier": 0.956,
+        "reb_multiplier": 0.9,
+        "games_with": 3,
+        "games_without": 1
+      }
+    }
+  },
+  "SAC": {
+    "Zach Lavine": {
+      "Dennis Schroder": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.961,
+        "reb_multiplier": 1.05,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Drew Eubanks": {
+        "pts_multiplier": 1.098,
+        "ast_multiplier": 1.2,
+        "reb_multiplier": 0.939,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Keon Ellis": {
+        "pts_multiplier": 1.009,
+        "ast_multiplier": 1.149,
+        "reb_multiplier": 1.088,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Maxime Raynaud": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.065,
+        "reb_multiplier": 1.017,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Precious Achiuwa": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.013,
+        "reb_multiplier": 1.024,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Russell Westbrook": {
+        "pts_multiplier": 1.057,
+        "ast_multiplier": 1.123,
+        "reb_multiplier": 1.084,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Malik Monk": {
+        "pts_multiplier": 1.089,
+        "ast_multiplier": 1.09,
+        "reb_multiplier": 1.06,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "Keegan Murray": {
+        "pts_multiplier": 1.075,
+        "ast_multiplier": 1.071,
+        "reb_multiplier": 0.971,
+        "games_with": 1,
+        "games_without": 2
+      },
+      "Nique Clifford": {
+        "pts_multiplier": 1.056,
+        "ast_multiplier": 1.045,
+        "reb_multiplier": 1.04,
+        "games_with": 2,
+        "games_without": 2
+      },
+      "DeMar DeRozan": {
+        "pts_multiplier": 1.088,
+        "ast_multiplier": 0.968,
+        "reb_multiplier": 1.056,
+        "games_with": 2,
+        "games_without": 2
+      }
+    }
+  },
+  "SAS": {
+    "Stephon Castle": {
+      "Kelly Olynyk": {
+        "pts_multiplier": 0.955,
+        "ast_multiplier": 1.091,
+        "reb_multiplier": 0.968,
+        "games_with": 1,
+        "games_without": 1
+      },
       "Julian Champagnie": {
-        "ast_multiplier": 1.043,
-        "pts_multiplier": 1.055,
-        "reb_multiplier": 0.992,
+        "pts_multiplier": 1.049,
+        "ast_multiplier": 1.044,
+        "reb_multiplier": 0.995,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Luke Kornet": {
+        "pts_multiplier": 0.943,
+        "ast_multiplier": 1.04,
+        "reb_multiplier": 0.989,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Devin Vassell": {
+        "pts_multiplier": 0.993,
+        "ast_multiplier": 1.129,
+        "reb_multiplier": 0.974,
         "games_with": 3,
         "games_without": 1
       },
       "Dylan Harper": {
+        "pts_multiplier": 1.096,
         "ast_multiplier": 0.995,
-        "pts_multiplier": 1.1,
-        "reb_multiplier": 0.982,
+        "reb_multiplier": 0.986,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Harrison Barnes": {
+        "pts_multiplier": 1.006,
+        "ast_multiplier": 0.95,
+        "reb_multiplier": 1.005,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Keldon Johnson": {
+        "pts_multiplier": 0.984,
+        "ast_multiplier": 1.093,
+        "reb_multiplier": 0.965,
         "games_with": 3,
         "games_without": 1
       },
       "Carter Bryant": {
+        "pts_multiplier": 1.13,
         "ast_multiplier": 0.985,
-        "pts_multiplier": 1.316,
         "reb_multiplier": 0.985,
         "games_with": 1,
         "games_without": 1
       },
       "Jeremy Sochan": {
-        "ast_multiplier": 1.2,
         "pts_multiplier": 0.974,
+        "ast_multiplier": 1.2,
         "reb_multiplier": 1.0,
         "games_with": 1,
         "games_without": 1
       },
       "DeAaron Fox": {
+        "pts_multiplier": 1.13,
         "ast_multiplier": 1.087,
-        "pts_multiplier": 1.195,
         "reb_multiplier": 1.04,
         "games_with": 3,
         "games_without": 1
-      },
-      "Kelly Olynyk": {
-        "ast_multiplier": 1.091,
-        "pts_multiplier": 0.955,
-        "reb_multiplier": 0.968,
-        "games_with": 1,
-        "games_without": 1
-      },
-      "Keldon Johnson": {
-        "ast_multiplier": 1.097,
-        "pts_multiplier": 0.984,
-        "reb_multiplier": 0.963,
-        "games_with": 3,
-        "games_without": 1
-      }
-    },
-    "Victor Wembanyama": {
-      "Julian Champagnie": {
-        "ast_multiplier": 0.991,
-        "pts_multiplier": 1.118,
-        "reb_multiplier": 0.95,
-        "games_with": 2,
-        "games_without": 2
-      },
-      "Luke Kornet": {
-        "ast_multiplier": 1.065,
-        "pts_multiplier": 0.894,
-        "reb_multiplier": 0.942,
-        "games_with": 2,
-        "games_without": 2
-      },
-      "Dylan Harper": {
-        "ast_multiplier": 1.013,
-        "pts_multiplier": 1.089,
-        "reb_multiplier": 0.933,
-        "games_with": 2,
-        "games_without": 2
-      },
-      "DeAaron Fox": {
-        "ast_multiplier": 1.06,
-        "pts_multiplier": 1.181,
-        "reb_multiplier": 1.0,
-        "games_with": 2,
-        "games_without": 2
-      },
-      "Keldon Johnson": {
-        "ast_multiplier": 1.077,
-        "pts_multiplier": 1.004,
-        "reb_multiplier": 0.944,
-        "games_with": 2,
-        "games_without": 2
       }
     }
   },
-  "OKC": {},
   "NOP": {
     "Zion Williamson": {
+      "Jordan Hawkins": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.97,
+        "reb_multiplier": 1.123,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Derik Queen": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.095,
+        "reb_multiplier": 1.003,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Herbert Jones": {
+        "pts_multiplier": 0.987,
+        "ast_multiplier": 1.114,
+        "reb_multiplier": 1.15,
+        "games_with": 1,
+        "games_without": 1
+      },
+      "Karlo Matkovic": {
+        "pts_multiplier": 1.124,
+        "ast_multiplier": 1.003,
+        "reb_multiplier": 1.049,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Micah Peavy": {
+        "pts_multiplier": 1.117,
+        "ast_multiplier": 1.081,
+        "reb_multiplier": 1.15,
+        "games_with": 2,
+        "games_without": 1
+      },
+      "Jeremiah Fears": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 0.986,
+        "reb_multiplier": 1.036,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Jordan Poole": {
+        "pts_multiplier": 1.083,
+        "ast_multiplier": 0.967,
+        "reb_multiplier": 1.094,
+        "games_with": 3,
+        "games_without": 1
+      },
       "Jose Alvarado": {
-        "ast_multiplier": 1.008,
         "pts_multiplier": 1.104,
+        "ast_multiplier": 1.008,
         "reb_multiplier": 1.038,
         "games_with": 1,
         "games_without": 1
       },
-      "Herbert Jones": {
-        "ast_multiplier": 1.114,
-        "pts_multiplier": 0.987,
-        "reb_multiplier": 1.171,
-        "games_with": 1,
+      "Yves Missi": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.168,
+        "reb_multiplier": 1.024,
+        "games_with": 3,
         "games_without": 1
       },
       "Saddiq Bey": {
-        "ast_multiplier": 1.0,
-        "pts_multiplier": 1.048,
-        "reb_multiplier": 1.119,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Trey Murphy III": {
-        "ast_multiplier": 1.106,
-        "pts_multiplier": 1.142,
-        "reb_multiplier": 1.133,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Jeremiah Fears": {
-        "ast_multiplier": 0.963,
-        "pts_multiplier": 1.17,
-        "reb_multiplier": 1.033,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Derik Queen": {
-        "ast_multiplier": 1.08,
-        "pts_multiplier": 1.23,
-        "reb_multiplier": 0.981,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Jordan Hawkins": {
-        "ast_multiplier": 1.025,
-        "pts_multiplier": 1.221,
-        "reb_multiplier": 1.102,
-        "games_with": 2,
-        "games_without": 1
-      },
-      "Micah Peavy": {
-        "ast_multiplier": 1.09,
-        "pts_multiplier": 1.128,
-        "reb_multiplier": 1.226,
+        "pts_multiplier": 1.069,
+        "ast_multiplier": 1.029,
+        "reb_multiplier": 1.104,
         "games_with": 3,
-        "games_without": 1
-      },
-      "Yves Missi": {
-        "ast_multiplier": 1.151,
-        "pts_multiplier": 1.159,
-        "reb_multiplier": 1.023,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Jordan Poole": {
-        "ast_multiplier": 0.952,
-        "pts_multiplier": 1.094,
-        "reb_multiplier": 1.107,
-        "games_with": 4,
-        "games_without": 1
-      },
-      "Karlo Matkovic": {
-        "ast_multiplier": 1.032,
-        "pts_multiplier": 1.14,
-        "reb_multiplier": 1.066,
-        "games_with": 4,
         "games_without": 1
       },
       "Bryce McGowens": {
-        "ast_multiplier": 1.138,
-        "pts_multiplier": 1.317,
-        "reb_multiplier": 1.021,
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.137,
+        "reb_multiplier": 1.016,
+        "games_with": 3,
+        "games_without": 1
+      },
+      "Trey Murphy III": {
+        "pts_multiplier": 1.13,
+        "ast_multiplier": 1.11,
+        "reb_multiplier": 1.132,
         "games_with": 3,
         "games_without": 1
       }
     }
-  },
-  "GSW": {},
-  "TOR": {
-    "Immanuel Quickley": {
-      "Jamal Shead": {
-        "ast_multiplier": 1.05,
-        "pts_multiplier": 1.071,
-        "reb_multiplier": 0.994,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Brandon Ingram": {
-        "ast_multiplier": 1.031,
-        "pts_multiplier": 1.072,
-        "reb_multiplier": 1.053,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Ochai Agbaji": {
-        "ast_multiplier": 1.112,
-        "pts_multiplier": 1.101,
-        "reb_multiplier": 1.112,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Collin Murray-Boyles": {
-        "ast_multiplier": 1.109,
-        "pts_multiplier": 1.063,
-        "reb_multiplier": 1.109,
-        "games_with": 3,
-        "games_without": 1
-      },
-      "Alijah Martin": {
-        "ast_multiplier": 1.024,
-        "pts_multiplier": 1.058,
-        "reb_multiplier": 0.995,
-        "games_with": 1,
-        "games_without": 1
-      },
-      "A.J. Lawson": {
-        "ast_multiplier": 1.059,
-        "pts_multiplier": 1.059,
-        "reb_multiplier": 1.003,
-        "games_with": 1,
-        "games_without": 1
-      },
-      "Scottie Barnes": {
-        "ast_multiplier": 1.087,
-        "pts_multiplier": 1.077,
-        "reb_multiplier": 1.085,
-        "games_with": 3,
-        "games_without": 1
-      }
-    }
-  },
-  "PHI": {}
+  }
 }
