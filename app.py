@@ -89,6 +89,7 @@ class NBAProjectionSystem:
         self.etr_rates = self.load_etr_rates()
         self.learned_absence_impacts = self.load_learned_absence_impacts()
         self.opponent_defense = self.load_opponent_defense()
+        self.redistribution_rates = self.load_redistribution_rates()
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -313,17 +314,39 @@ class NBAProjectionSystem:
             return not (math.isnan(value) or math.isinf(value))
         return False
     
-    def predict(self, player_name, opponent, minutes):
+    def predict(self, player_name, opponent, minutes, team=None, playing_teammates=None):
         """Generate projections for a single player"""
         try:
             if player_name not in self.player_averages:
+                # Try to use ETR rates directly if player not in averages
+                if hasattr(self, 'etr_rates') and player_name in self.etr_rates:
+                    etr = self.etr_rates[player_name]
+                    team = team or etr.get('team', 'UNK')
+                    projections = {}
+                    projections['Points'] = 0
+                    projections['Assists'] = 0
+                    projections['Rebounds'] = 0
+                    projections['Three Pointers Made'] = 0
+                    projections['Steals'] = 0
+                    projections['Blocks'] = 0
+                    projections['Turnovers'] = 0
+                    projections['PRA'] = 0
+                    
+                    projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent, team, playing_teammates)
+                    
+                    return {
+                        'success': True,
+                        'projections': projections,
+                        'team': team,
+                        'position': 'SG'
+                    }
                 return {'success': False, 'error': f'Player {player_name} not found in database'}
             
             player_info = self.player_averages[player_name]
-            team = player_info.get('Team', 'UNK')
+            player_team = team or player_info.get('Team', 'UNK')
             position = player_info.get('Position', 'SG')
             
-            X = self.create_feature_vector(player_name, team, opponent, position, minutes)
+            X = self.create_feature_vector(player_name, player_team, opponent, position, minutes)
             
             projections = {}
             
@@ -343,13 +366,13 @@ class NBAProjectionSystem:
                     print(f"❌ Error predicting {stat} for {player_name}: {e}")
                     return {'success': False, 'error': f'Prediction error for {stat}: {str(e)}'}
             
-            # BLEND with ETR learned rates if available (with opponent adjustment)
-            projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent)
+            # BLEND with ETR learned rates if available (with opponent and lineup adjustments)
+            projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent, player_team, playing_teammates)
             
             return {
                 'success': True,
                 'projections': projections,
-                'team': team,
+                'team': player_team,
                 'position': position
             }
             
@@ -359,10 +382,12 @@ class NBAProjectionSystem:
             traceback.print_exc()
             return {'success': False, 'error': str(e)}
     
-    def blend_with_etr_rates(self, player_name, minutes, ml_projections, opponent=None):
+    def blend_with_etr_rates(self, player_name, minutes, ml_projections, opponent=None, team=None, playing_teammates=None):
         """
-        Use ETR learned per-minute rates DIRECTLY when available.
-        Apply opponent defensive adjustments.
+        Use ETR learned per-minute rates with lineup-based adjustments.
+        
+        Key insight: When a player is OUT, teammates' rates change based on
+        observed ETR projections, not calculated redistribution.
         """
         if not hasattr(self, 'etr_rates') or player_name not in self.etr_rates:
             return ml_projections
@@ -370,48 +395,83 @@ class NBAProjectionSystem:
         etr = self.etr_rates[player_name]
         sample_size = etr.get('sample_size', 0)
         
-        # If we have ETR data, use it 100% (not blended)
         if sample_size < 1:
             return ml_projections
         
-        # Use ETR rates directly
-        stat_mapping = {
-            'Points': 'pts_per_min',
-            'Assists': 'ast_per_min',
-            'Rebounds': 'reb_per_min',
-            'Three Pointers Made': '3pm_per_min',
-            'Steals': 'stl_per_min',
-            'Blocks': 'blk_per_min',
-            'Turnovers': 'tov_per_min'
-        }
-        
         projections = ml_projections.copy()
         
-        # Get opponent adjustments
-        opp_adj = {}
+        # Get base rates (may be modified if key player is out)
+        pts_rate = self._get_effective_rate(player_name, team, playing_teammates, 'pts')
+        ast_rate = self._get_effective_rate(player_name, team, playing_teammates, 'ast')
+        reb_rate = self._get_effective_rate(player_name, team, playing_teammates, 'reb')
+        
+        # Calculate base projections
+        projections['Points'] = pts_rate * minutes
+        projections['Assists'] = ast_rate * minutes
+        projections['Rebounds'] = reb_rate * minutes
+        
+        # Use standard rates for other stats
+        projections['Three Pointers Made'] = etr.get('3pm_per_min', 0) * minutes
+        projections['Steals'] = etr.get('stl_per_min', 0) * minutes
+        projections['Blocks'] = etr.get('blk_per_min', 0) * minutes
+        projections['Turnovers'] = etr.get('tov_per_min', 0) * minutes
+        
+        # Apply opponent adjustments
         if opponent and hasattr(self, 'opponent_defense') and opponent in self.opponent_defense:
             opp_adj = self.opponent_defense[opponent]
-        
-        for stat, rate_key in stat_mapping.items():
-            if stat in projections and rate_key in etr:
-                etr_rate = etr[rate_key]
-                if etr_rate > 0:
-                    base_proj = etr_rate * minutes
-                    
-                    # Apply opponent adjustment
-                    if stat == 'Points' and 'pts_mult' in opp_adj:
-                        base_proj *= opp_adj['pts_mult']
-                    elif stat == 'Assists' and 'ast_mult' in opp_adj:
-                        base_proj *= opp_adj['ast_mult']
-                    elif stat == 'Rebounds' and 'reb_mult' in opp_adj:
-                        base_proj *= opp_adj['reb_mult']
-                    
-                    projections[stat] = base_proj
+            projections['Points'] *= opp_adj.get('pts_mult', 1.0)
+            projections['Assists'] *= opp_adj.get('ast_mult', 1.0)
+            projections['Rebounds'] *= opp_adj.get('reb_mult', 1.0)
         
         # Recalculate PRA
         projections['PRA'] = projections['Points'] + projections['Rebounds'] + projections['Assists']
         
         return projections
+    
+    def _get_effective_rate(self, player, team, playing_teammates, stat):
+        """
+        Get the effective per-minute rate for a player based on who's playing.
+        Uses observed rates when key players are out.
+        """
+        if player not in self.etr_rates:
+            return 0
+        
+        base_rate = self.etr_rates[player].get(f'{stat}_per_min', 0)
+        
+        # If no redistribution data or no teammate info, use base rate
+        if not hasattr(self, 'redistribution_rates') or team is None or playing_teammates is None:
+            return base_rate
+        
+        if team not in self.redistribution_rates:
+            return base_rate
+        
+        team_redist = self.redistribution_rates[team]
+        
+        # Check if any players with redistribution data are missing
+        for missing_player, teammate_data in team_redist.items():
+            if missing_player not in playing_teammates and player in teammate_data:
+                data = teammate_data[player]
+                rate_key = f'without_{stat}_rate'
+                if rate_key in data:
+                    return data[rate_key]
+        
+        return base_rate
+    
+    def load_redistribution_rates(self):
+        """Load learned redistribution rates"""
+        try:
+            redist_file = 'models/redistribution_rates.json'
+            if os.path.exists(redist_file):
+                with open(redist_file, 'r') as f:
+                    rates = json.load(f)
+                    print(f"✅ Loaded redistribution rates for {len(rates)} teams")
+                    return rates
+            else:
+                print("⚠️  No redistribution rates file found")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load redistribution rates: {e}")
+            return {}
     
     
     def get_typical_team_minutes(self, team):
@@ -876,48 +936,27 @@ class NBAProjectionSystem:
         
         print(f"Generating projections for {len(dfs_data)} players...")
         
-        # Group players by team to calculate usage adjustments
+        # Group players by team to know who's playing
         teams_dict = {}
         for player_data in dfs_data:
             team = player_data['team']
             if team not in teams_dict:
-                teams_dict[team] = {}
-            teams_dict[team][player_data['player']] = player_data['minutes']
+                teams_dict[team] = set()
+            teams_dict[team].add(player_data['player'])
         
-        # Calculate usage adjustments for each team
-        all_adjustments = {}
-        for team, players in teams_dict.items():
-            team_adjustments = self.calculate_usage_adjustments(team, players)
-            all_adjustments.update(team_adjustments)
-        
-        # Generate projections with adjustments
+        # Generate projections using lineup-aware rates
         for player_data in dfs_data:
             player_name = player_data['player']
             opponent = player_data['opponent']
             minutes = player_data['minutes']
+            team = player_data['team']
+            playing_teammates = teams_dict.get(team, set())
             
-            result = self.predict(player_name, opponent, minutes)
+            result = self.predict(player_name, opponent, minutes, team, playing_teammates)
             
             if result['success']:
                 try:
                     proj = result['projections']
-                    
-                    # Apply usage adjustments if player has them
-                    if player_name in all_adjustments:
-                        adjustment = all_adjustments[player_name]
-                        multipliers = adjustment.get('multipliers', {})
-                        source = adjustment.get('source', 'unknown')
-                        
-                        print(f"\n📈 Boosting {player_name} ({source}):")
-                        for stat in ['Points', 'Rebounds', 'Assists', 'Steals', 'Blocks', 'Three Pointers Made']:
-                            if stat in multipliers and stat in proj:
-                                original = proj[stat]
-                                multiplier = multipliers[stat]
-                                proj[stat] = original * multiplier
-                                print(f"   {stat}: {original:.1f} → {proj[stat]:.1f} ({(multiplier-1)*100:.1f}% boost)")
-                        
-                        # Recalculate PRA
-                        proj['PRA'] = proj['Points'] + proj['Rebounds'] + proj['Assists']
                     
                     # Validate all projection values
                     valid = True
