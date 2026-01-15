@@ -4,187 +4,637 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBA Player Projections</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .upload-area {
-            border: 2px dashed #667eea;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        
+        .header-right {
+            text-align: right;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        /* Upload Section */
+        .upload-section {
+            background: white;
             border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 30px;
-            background: #f8f9fa;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
+        
+        .upload-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
         .file-input-wrapper {
-            display: inline-block;
-            margin: 10px;
+            position: relative;
         }
+        
         .file-input-wrapper label {
-            display: inline-block;
-            padding: 12px 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
             background: #667eea;
             color: white;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
         }
+        
         .file-input-wrapper label:hover {
             background: #5568d3;
-            transform: translateY(-2px);
         }
+        
         .file-input-wrapper input[type="file"] {
             display: none;
         }
+        
         .file-name {
-            display: block;
-            margin-top: 8px;
-            font-size: 0.9em;
             color: #666;
+            font-size: 0.85rem;
+            margin-left: 12px;
         }
+        
+        .generate-btn {
+            padding: 12px 28px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .generate-btn:hover {
+            background: #059669;
+        }
+        
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Results Section */
+        .results-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        
+        .results-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .results-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .results-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .download-btn {
+            padding: 8px 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .download-btn:hover {
+            background: #059669;
+        }
+        
+        /* Filters */
+        .filters-bar {
+            padding: 16px 24px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .filter-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: white;
+            min-width: 140px;
+            cursor: pointer;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 200px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .clear-filters {
+            padding: 8px 12px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .clear-filters:hover {
+            background: #e5e7eb;
+        }
+        
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
         .projections-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 0.9em;
+            font-size: 0.85rem;
         }
+        
         .projections-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 8px;
+            background: #f9fafb;
+            padding: 12px 16px;
             text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
             position: sticky;
             top: 0;
             z-index: 10;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
+            white-space: nowrap;
         }
-        .projections-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        .projections-table tr:hover {
-            background: #f8f9fa;
-        }
-        .table-container {
-            max-height: 600px;
-            overflow-y: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .download-btn {
-            background: #28a745;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
+        
+        .projections-table th.sortable {
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 20px;
+            user-select: none;
         }
-        .download-btn:hover {
-            background: #218838;
-            transform: translateY(-2px);
+        
+        .projections-table th.sortable:hover {
+            background: #f3f4f6;
         }
-        .stats-highlight {
-            font-weight: 600;
+        
+        .projections-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            white-space: nowrap;
+        }
+        
+        .projections-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .projections-table .player-name {
+            font-weight: 500;
+            color: #1f2937;
+        }
+        
+        .projections-table .team-cell {
+            font-weight: 500;
             color: #667eea;
+        }
+        
+        .projections-table .stat-cell {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .projections-table .pra-cell {
+            font-weight: 600;
+            color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .loading-overlay.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #9ca3af;
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: #9ca3af;
+            font-size: 0.85rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🏀 NBA Player Projections</h1>
-            <p class="subtitle">AI-Powered Statistical Predictions</p>
-        </header>
-
-        <div class="main-content">
-            <!-- Daily Projections Section -->
-            <div class="input-section">
-                <h2>📊 Daily Projections Generator</h2>
-                <p style="color: #666; margin-bottom: 20px;">Upload NBA DFS Projections CSV to generate all player projections</p>
-                
-                <div class="upload-area">
-                    <h3 style="margin-bottom: 20px;">Upload Minute Projections</h3>
-                    
-                    <div class="file-input-wrapper">
-                        <label for="dfsFile">
-                            📄 NBA DFS Projections CSV
-                        </label>
-                        <input type="file" id="dfsFile" accept=".csv">
-                        <span class="file-name" id="dfsFileName">No file selected</span>
-                    </div>
-
-                    <br><br>
-                    <button class="btn-predict" id="generateDailyBtn" style="width: auto; padding: 15px 40px;">
-                        Generate All Projections
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🏀 NBA Player Projections</h1>
+                <p class="subtitle">ETR-Calibrated Statistical Predictions</p>
+            </div>
+            <div class="header-right">
+                <div id="lastUpdated"></div>
+            </div>
+        </div>
+        
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-row">
+                <div class="file-input-wrapper">
+                    <label for="dfsFile">
+                        📄 Upload DFS Projections
+                    </label>
+                    <input type="file" id="dfsFile" accept=".csv">
+                </div>
+                <span class="file-name" id="dfsFileName">No file selected</span>
+                <button class="generate-btn" id="generateBtn">
+                    Generate Projections
+                </button>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <div class="results-title" id="resultsTitle">0 Projections</div>
+                <div class="results-actions">
+                    <button class="download-btn" id="downloadBtn">
+                        ⬇️ Download CSV
                     </button>
                 </div>
-
-                <!-- Daily Results -->
-                <div id="dailyResults" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 id="projectionsCount">0 Projections Generated</h3>
-                        <button class="download-btn" id="downloadBtn">
-                            ⬇️ Download CSV
-                        </button>
-                    </div>
-
-                    <!-- Search Bar -->
-                    <div style="margin-bottom: 20px;">
-                        <input 
-                            type="text" 
-                            id="playerSearch" 
-                            placeholder="🔍 Search player name..." 
-                            style="width: 100%; padding: 12px 20px; border: 2px solid #667eea; border-radius: 8px; font-size: 1em; box-sizing: border-box;"
-                        >
-                    </div>
-
-                    <div class="table-container">
-                        <table class="projections-table" id="projectionsTable">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>Team</th>
-                                    <th>Opp</th>
-                                    <th>Pos</th>
-                                    <th>Min</th>
-                                    <th>PTS</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>3PM</th>
-                                    <th>STL</th>
-                                    <th>BLK</th>
-                                    <th>TO</th>
-                                    <th class="stats-highlight">PRA</th>
-                                </tr>
-                            </thead>
-                            <tbody id="projectionsTableBody">
-                            </tbody>
-                        </table>
-                    </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label class="filter-label">Team</label>
+                    <select class="filter-select" id="teamFilter">
+                        <option value="">All Teams</option>
+                    </select>
                 </div>
+                <div class="filter-group">
+                    <label class="filter-label">Position</label>
+                    <select class="filter-select" id="posFilter">
+                        <option value="">All Positions</option>
+                        <option value="PG">PG</option>
+                        <option value="SG">SG</option>
+                        <option value="SF">SF</option>
+                        <option value="PF">PF</option>
+                        <option value="C">C</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search player...">
+                </div>
+                <button class="clear-filters" id="clearFilters">Clear Filters</button>
             </div>
-
-            <!-- Loading Spinner -->
-            <div class="loading" id="loadingSpinner" style="display: none;">
-                <div class="spinner"></div>
-                <p>Calculating projections...</p>
+            
+            <!-- Table -->
+            <div class="table-container">
+                <table class="projections-table" id="projectionsTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="player">Player</th>
+                            <th class="sortable" data-sort="team">Team</th>
+                            <th>Opp</th>
+                            <th>Pos</th>
+                            <th class="sortable" data-sort="minutes">Min</th>
+                            <th class="sortable" data-sort="points">PTS</th>
+                            <th class="sortable" data-sort="rebounds">REB</th>
+                            <th class="sortable" data-sort="assists">AST</th>
+                            <th class="sortable" data-sort="three_pointers_made">3PM</th>
+                            <th class="sortable" data-sort="steals">STL</th>
+                            <th class="sortable" data-sort="blocks">BLK</th>
+                            <th class="sortable" data-sort="turnovers">TO</th>
+                            <th class="sortable" data-sort="pra">PRA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
             </div>
-
-            <!-- Error Message -->
-            <div class="error-message" id="errorMessage" style="display: none;"></div>
         </div>
-
-        <footer>
-            <p>Powered by Machine Learning | ETR-Calibrated Projections</p>
-        </footer>
+        
+        <!-- Empty State -->
+        <div class="results-section" id="emptyState">
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <p>Upload a DFS projections CSV to generate player projections</p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            Powered by Machine Learning | ETR-Calibrated Model
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Generating projections...</div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        let allProjections = [];
+        let currentSort = { column: 'pra', direction: 'desc' };
+        
+        // File input handling
+        document.getElementById('dfsFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'No file selected';
+            document.getElementById('dfsFileName').textContent = fileName;
+        });
+        
+        // Generate button
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('dfsFile');
+            if (!fileInput.files[0]) {
+                alert('Please select a DFS projections file');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('dfs_file', fileInput.files[0]);
+            
+            document.getElementById('loadingOverlay').classList.add('active');
+            
+            try {
+                const response = await fetch('/generate_daily', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    allProjections = data.projections;
+                    populateTeamFilter();
+                    renderTable();
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('resultsTitle').textContent = `${allProjections.length} Projections`;
+                    document.getElementById('lastUpdated').textContent = `Updated: ${new Date().toLocaleString()}`;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error generating projections: ' + error.message);
+            } finally {
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }
+        });
+        
+        // Populate team filter
+        function populateTeamFilter() {
+            const teams = [...new Set(allProjections.map(p => p.team))].sort();
+            const select = document.getElementById('teamFilter');
+            select.innerHTML = '<option value="">All Teams</option>';
+            teams.forEach(team => {
+                select.innerHTML += `<option value="${team}">${team}</option>`;
+            });
+        }
+        
+        // Filter and render table
+        function renderTable() {
+            const teamFilter = document.getElementById('teamFilter').value;
+            const posFilter = document.getElementById('posFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = allProjections.filter(p => {
+                if (teamFilter && p.team !== teamFilter) return false;
+                if (posFilter && p.position !== posFilter) return false;
+                if (searchTerm && !p.player.toLowerCase().includes(searchTerm)) return false;
+                return true;
+            });
+            
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal = a[currentSort.column];
+                let bVal = b[currentSort.column];
+                
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (currentSort.direction === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = filtered.map(p => `
+                <tr>
+                    <td class="player-name">${p.player}</td>
+                    <td class="team-cell">${p.team}</td>
+                    <td>${p.opponent}</td>
+                    <td>${p.position}</td>
+                    <td class="stat-cell">${p.minutes.toFixed(1)}</td>
+                    <td class="stat-cell">${p.points.toFixed(1)}</td>
+                    <td class="stat-cell">${p.rebounds.toFixed(1)}</td>
+                    <td class="stat-cell">${p.assists.toFixed(1)}</td>
+                    <td class="stat-cell">${p.three_pointers_made.toFixed(2)}</td>
+                    <td class="stat-cell">${p.steals.toFixed(2)}</td>
+                    <td class="stat-cell">${p.blocks.toFixed(2)}</td>
+                    <td class="stat-cell">${p.turnovers.toFixed(2)}</td>
+                    <td class="stat-cell pra-cell">${p.pra.toFixed(1)}</td>
+                </tr>
+            `).join('');
+            
+            // Update count
+            document.getElementById('resultsTitle').textContent = `${filtered.length} of ${allProjections.length} Projections`;
+        }
+        
+        // Filter event listeners
+        document.getElementById('teamFilter').addEventListener('change', renderTable);
+        document.getElementById('posFilter').addEventListener('change', renderTable);
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+        
+        // Clear filters
+        document.getElementById('clearFilters').addEventListener('click', function() {
+            document.getElementById('teamFilter').value = '';
+            document.getElementById('posFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            renderTable();
+        });
+        
+        // Sortable columns
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', function() {
+                const column = this.dataset.sort;
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'desc';
+                }
+                renderTable();
+            });
+        });
+        
+        // Download CSV
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            if (allProjections.length === 0) return;
+            
+            const headers = ['player', 'team', 'opponent', 'position', 'minutes', 'points', 'rebounds', 'assists', 'three_pointers_made', 'steals', 'blocks', 'turnovers', 'pra'];
+            const csv = [
+                headers.join(','),
+                ...allProjections.map(p => headers.map(h => p[h]).join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nba_projections_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
 </body>
 </html>
