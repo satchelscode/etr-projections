@@ -980,7 +980,7 @@ class NBAProjectionSystem:
                             'blocks': float(proj['Blocks']),
                             'turnovers': float(proj['Turnovers']),
                             'pra': float(proj['PRA']),
-                            'usage_boosted': player_name in all_adjustments
+                            'usage_boosted': False
                         })
                     else:
                         skipped.append(f"{player_name} (invalid values)")
