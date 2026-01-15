@@ -88,6 +88,7 @@ class NBAProjectionSystem:
         self.pattern_matcher = HistoricalPatternMatcher()
         self.etr_rates = self.load_etr_rates()
         self.learned_absence_impacts = self.load_learned_absence_impacts()
+        self.opponent_defense = self.load_opponent_defense()
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -145,6 +146,22 @@ class NBAProjectionSystem:
                 return {}
         except Exception as e:
             print(f"⚠️  Could not load learned absence impacts: {e}")
+            return {}
+    
+    def load_opponent_defense(self):
+        """Load opponent defensive ratings from ETR historical data"""
+        try:
+            defense_file = 'models/opponent_defense_ratings.json'
+            if os.path.exists(defense_file):
+                with open(defense_file, 'r') as f:
+                    defense = json.load(f)
+                    print(f"✅ Loaded opponent defense ratings for {len(defense)} teams")
+                    return defense
+            else:
+                print("⚠️  No opponent defense ratings file found")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load opponent defense ratings: {e}")
             return {}
     
     def load_historical_patterns(self):
@@ -326,8 +343,8 @@ class NBAProjectionSystem:
                     print(f"❌ Error predicting {stat} for {player_name}: {e}")
                     return {'success': False, 'error': f'Prediction error for {stat}: {str(e)}'}
             
-            # BLEND with ETR learned rates if available
-            projections = self.blend_with_etr_rates(player_name, minutes, projections)
+            # BLEND with ETR learned rates if available (with opponent adjustment)
+            projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent)
             
             return {
                 'success': True,
@@ -342,10 +359,10 @@ class NBAProjectionSystem:
             traceback.print_exc()
             return {'success': False, 'error': str(e)}
     
-    def blend_with_etr_rates(self, player_name, minutes, ml_projections):
+    def blend_with_etr_rates(self, player_name, minutes, ml_projections, opponent=None):
         """
         Use ETR learned per-minute rates DIRECTLY when available.
-        ETR rates are more accurate than ML predictions.
+        Apply opponent defensive adjustments.
         """
         if not hasattr(self, 'etr_rates') or player_name not in self.etr_rates:
             return ml_projections
@@ -370,11 +387,26 @@ class NBAProjectionSystem:
         
         projections = ml_projections.copy()
         
+        # Get opponent adjustments
+        opp_adj = {}
+        if opponent and hasattr(self, 'opponent_defense') and opponent in self.opponent_defense:
+            opp_adj = self.opponent_defense[opponent]
+        
         for stat, rate_key in stat_mapping.items():
             if stat in projections and rate_key in etr:
                 etr_rate = etr[rate_key]
                 if etr_rate > 0:
-                    projections[stat] = etr_rate * minutes
+                    base_proj = etr_rate * minutes
+                    
+                    # Apply opponent adjustment
+                    if stat == 'Points' and 'pts_mult' in opp_adj:
+                        base_proj *= opp_adj['pts_mult']
+                    elif stat == 'Assists' and 'ast_mult' in opp_adj:
+                        base_proj *= opp_adj['ast_mult']
+                    elif stat == 'Rebounds' and 'reb_mult' in opp_adj:
+                        base_proj *= opp_adj['reb_mult']
+                    
+                    projections[stat] = base_proj
         
         # Recalculate PRA
         projections['PRA'] = projections['Points'] + projections['Rebounds'] + projections['Assists']
