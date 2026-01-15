@@ -317,6 +317,15 @@ class NBAProjectionSystem:
     def predict(self, player_name, opponent, minutes, team=None, playing_teammates=None):
         """Generate projections for a single player"""
         try:
+            # DEBUG: Log first few players
+            if not hasattr(self, '_debug_count'):
+                self._debug_count = 0
+            if self._debug_count < 3:
+                print(f"DEBUG predict() called for: {player_name}")
+                print(f"  In player_averages: {player_name in self.player_averages}")
+                print(f"  In etr_rates: {player_name in self.etr_rates if hasattr(self, 'etr_rates') else 'N/A'}")
+                self._debug_count += 1
+            
             if player_name not in self.player_averages:
                 # Try to use ETR rates directly if player not in averages
                 if hasattr(self, 'etr_rates') and player_name in self.etr_rates:
@@ -935,6 +944,8 @@ class NBAProjectionSystem:
         skipped = []
         
         print(f"Generating projections for {len(dfs_data)} players...")
+        print(f"ETR rates available: {len(self.etr_rates) if hasattr(self, 'etr_rates') else 0}")
+        print(f"Player averages available: {len(self.player_averages) if hasattr(self, 'player_averages') else 0}")
         
         # Group players by team to know who's playing
         teams_dict = {}
