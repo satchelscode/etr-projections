@@ -87,6 +87,7 @@ class NBAProjectionSystem:
         self.team_caps = self.load_learned_caps()
         self.pattern_matcher = HistoricalPatternMatcher()
         self.etr_rates = self.load_etr_rates()
+        self.learned_absence_impacts = self.load_learned_absence_impacts()
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -128,6 +129,22 @@ class NBAProjectionSystem:
                 return {}
         except Exception as e:
             print(f"⚠️  Could not load ETR rates: {e}")
+            return {}
+    
+    def load_learned_absence_impacts(self):
+        """Load learned absence impacts from ETR historical data"""
+        try:
+            impacts_file = 'models/learned_absence_impacts.json'
+            if os.path.exists(impacts_file):
+                with open(impacts_file, 'r') as f:
+                    impacts = json.load(f)
+                    print(f"✅ Loaded learned absence impacts for {len(impacts)} teams")
+                    return impacts
+            else:
+                print("⚠️  No learned absence impacts file found")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Could not load learned absence impacts: {e}")
             return {}
     
     def load_historical_patterns(self):
@@ -391,6 +408,80 @@ class NBAProjectionSystem:
         return typical_roster
     
     def calculate_assist_redistribution(self, team, projected_players_dict):
+        """
+        USE LEARNED ABSENCE IMPACTS from ETR historical data.
+        
+        This method looks at who is OUT tonight and applies the exact multipliers
+        we learned from ETR projections for similar situations.
+        """
+        
+        adjustments = {}
+        
+        try:
+            # Check if we have learned impacts for this team
+            if not hasattr(self, 'learned_absence_impacts') or team not in self.learned_absence_impacts:
+                return self._fallback_assist_redistribution(team, projected_players_dict)
+            
+            team_impacts = self.learned_absence_impacts[team]
+            
+            # Find which stars are OUT tonight
+            missing_stars = []
+            for star_name in team_impacts.keys():
+                if star_name not in projected_players_dict:
+                    missing_stars.append(star_name)
+            
+            if not missing_stars:
+                return {}
+            
+            print(f"\n🎯 LEARNED ABSENCE IMPACTS for {team}:")
+            for star in missing_stars:
+                print(f"   ⚠️  {star} is OUT")
+            
+            # Apply learned multipliers for each missing star
+            for star_name in missing_stars:
+                star_impacts = team_impacts[star_name]
+                
+                for teammate, impact_data in star_impacts.items():
+                    if teammate in projected_players_dict:
+                        ast_mult = impact_data.get('ast_multiplier', 1.0)
+                        pts_mult = impact_data.get('pts_multiplier', 1.0)
+                        reb_mult = impact_data.get('reb_multiplier', 1.0)
+                        
+                        # Only apply if meaningful impact
+                        if ast_mult > 1.05 or pts_mult > 1.05 or reb_mult > 1.05:
+                            if teammate in adjustments:
+                                # Combine multipliers (multiplicative)
+                                existing = adjustments[teammate]['multipliers']
+                                existing['Assists'] = min(existing['Assists'] * ast_mult, 1.50)
+                                existing['Points'] = min(existing['Points'] * pts_mult, 1.40)
+                                existing['Rebounds'] = min(existing['Rebounds'] * reb_mult, 1.35)
+                            else:
+                                adjustments[teammate] = {
+                                    'multipliers': {
+                                        'Points': min(pts_mult, 1.40),
+                                        'Rebounds': min(reb_mult, 1.35),
+                                        'Assists': min(ast_mult, 1.50),
+                                        'Steals': min(1.0 + (ast_mult - 1) * 0.3, 1.20),
+                                        'Blocks': min(1.0 + (reb_mult - 1) * 0.3, 1.20),
+                                        'Three Pointers Made': min(pts_mult * 0.95, 1.30)
+                                    },
+                                    'source': 'learned_absence_impact'
+                                }
+                            
+                            games_with = impact_data.get('games_with', 0)
+                            games_without = impact_data.get('games_without', 0)
+                            confidence = "HIGH" if games_without >= 2 else "medium"
+                            print(f"   ✅ {teammate}: AST {ast_mult:.2f}x, PTS {pts_mult:.2f}x [{confidence}, {games_with}w/{games_without}wo]")
+            
+            return adjustments
+            
+        except Exception as e:
+            print(f"Error in learned absence impacts: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._fallback_assist_redistribution(team, projected_players_dict)
+    
+    def _fallback_assist_redistribution(self, team, projected_players_dict):
         """
         NEW METHOD: Specifically handle assist redistribution when star playmakers are OUT
         
@@ -903,22 +994,6 @@ def download_projections():
         output = BytesIO()
         df.to_csv(output, index=False)
         output.seek(0)
-        
-        return send_file(
-            output,
-            mimetype='text/csv',
-            as_attachment=True,
-            download_name='nba_daily_projections.csv'
-        )
-        
-    except Exception as e:
-        print(f"Error in download_projections: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
         
         return send_file(
             output,
