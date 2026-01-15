@@ -443,8 +443,8 @@ class NBAProjectionSystem:
         """
         USE LEARNED ABSENCE IMPACTS from ETR historical data.
         
-        This method looks at who is OUT tonight and applies the exact multipliers
-        we learned from ETR projections for similar situations.
+        ETR's actual adjustment range: 95% are between 0.89x and 1.13x
+        We cap our adjustments to match this conservative range.
         """
         
         adjustments = {}
@@ -452,7 +452,7 @@ class NBAProjectionSystem:
         try:
             # Check if we have learned impacts for this team
             if not hasattr(self, 'learned_absence_impacts') or team not in self.learned_absence_impacts:
-                return self._fallback_assist_redistribution(team, projected_players_dict)
+                return {}  # No fallback - if no data, no adjustment
             
             team_impacts = self.learned_absence_impacts[team]
             
@@ -465,7 +465,7 @@ class NBAProjectionSystem:
             if not missing_stars:
                 return {}
             
-            print(f"\n🎯 LEARNED ABSENCE IMPACTS for {team}:")
+            print(f"\n🎯 ABSENCE IMPACTS for {team} (ETR-calibrated):")
             for star in missing_stars:
                 print(f"   ⚠️  {star} is OUT")
             
@@ -475,43 +475,39 @@ class NBAProjectionSystem:
                 
                 for teammate, impact_data in star_impacts.items():
                     if teammate in projected_players_dict:
+                        # Get multipliers (already capped to ETR range in the JSON)
                         ast_mult = impact_data.get('ast_multiplier', 1.0)
                         pts_mult = impact_data.get('pts_multiplier', 1.0)
                         reb_mult = impact_data.get('reb_multiplier', 1.0)
                         
-                        # Only apply if meaningful impact
-                        if ast_mult > 1.05 or pts_mult > 1.05 or reb_mult > 1.05:
+                        # Only apply if meaningful (>2% change)
+                        if abs(ast_mult - 1.0) > 0.02 or abs(pts_mult - 1.0) > 0.02:
                             if teammate in adjustments:
-                                # Combine multipliers (multiplicative)
+                                # Combine multipliers but stay in ETR range
                                 existing = adjustments[teammate]['multipliers']
-                                existing['Assists'] = min(existing['Assists'] * ast_mult, 1.50)
-                                existing['Points'] = min(existing['Points'] * pts_mult, 1.40)
-                                existing['Rebounds'] = min(existing['Rebounds'] * reb_mult, 1.35)
+                                existing['Assists'] = max(0.85, min(1.20, existing['Assists'] * ast_mult))
+                                existing['Points'] = max(0.89, min(1.13, existing['Points'] * pts_mult))
+                                existing['Rebounds'] = max(0.90, min(1.15, existing['Rebounds'] * reb_mult))
                             else:
                                 adjustments[teammate] = {
                                     'multipliers': {
-                                        'Points': min(pts_mult, 1.40),
-                                        'Rebounds': min(reb_mult, 1.35),
-                                        'Assists': min(ast_mult, 1.50),
-                                        'Steals': min(1.0 + (ast_mult - 1) * 0.3, 1.20),
-                                        'Blocks': min(1.0 + (reb_mult - 1) * 0.3, 1.20),
-                                        'Three Pointers Made': min(pts_mult * 0.95, 1.30)
+                                        'Points': max(0.89, min(1.13, pts_mult)),
+                                        'Rebounds': max(0.90, min(1.15, reb_mult)),
+                                        'Assists': max(0.85, min(1.20, ast_mult)),
+                                        'Steals': 1.0,
+                                        'Blocks': 1.0,
+                                        'Three Pointers Made': max(0.90, min(1.10, pts_mult))
                                     },
-                                    'source': 'learned_absence_impact'
+                                    'source': 'etr_calibrated_absence'
                                 }
                             
-                            games_with = impact_data.get('games_with', 0)
-                            games_without = impact_data.get('games_without', 0)
-                            confidence = "HIGH" if games_without >= 2 else "medium"
-                            print(f"   ✅ {teammate}: AST {ast_mult:.2f}x, PTS {pts_mult:.2f}x [{confidence}, {games_with}w/{games_without}wo]")
+                            print(f"   ✅ {teammate}: PTS {pts_mult:.2f}x, AST {ast_mult:.2f}x")
             
             return adjustments
             
         except Exception as e:
-            print(f"Error in learned absence impacts: {e}")
-            import traceback
-            traceback.print_exc()
-            return self._fallback_assist_redistribution(team, projected_players_dict)
+            print(f"Error in absence impacts: {e}")
+            return {}
     
     def _fallback_assist_redistribution(self, team, projected_players_dict):
         """
