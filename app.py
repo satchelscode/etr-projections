@@ -827,6 +827,7 @@ class NBAProjectionSystem:
                             'player': str(row['Player']).strip(),
                             'team': str(row['Team']).strip(),
                             'opponent': str(row['Opp']).strip(),
+                            'position': str(row.get('Pos', 'SG')).strip(),
                             'minutes': minutes
                         })
                 except Exception as e:
@@ -900,9 +901,9 @@ class NBAProjectionSystem:
                     if valid:
                         projections.append({
                             'player': str(player_name),
-                            'team': str(result['team']),
+                            'team': str(player_data['team']),  # Use team from input CSV
                             'opponent': str(opponent),
-                            'position': str(result['position']),
+                            'position': str(player_data.get('position', result['position'])),
                             'minutes': float(minutes),
                             'points': float(proj['Points']),
                             'rebounds': float(proj['Rebounds']),
