@@ -447,10 +447,10 @@ class NBAProjectionSystem:
             total_missing_points = sum(p['points'] for p in missing_playmakers)
             total_missing_rebounds = sum(p['rebounds'] for p in missing_playmakers)
             
-            # Apply efficiency factors (not all production is captured)
-            assist_pool = total_missing_assists * 0.70  # 70% of assists get redistributed
-            points_pool = total_missing_points * 0.55   # 55% of points (efficiency drops)
-            rebounds_pool = total_missing_rebounds * 0.75  # 75% of rebounds
+            # Apply efficiency factors (calibrated to match ETR projections)
+            assist_pool = total_missing_assists * 0.50  # 50% of assists get redistributed
+            points_pool = total_missing_points * 0.45   # 45% of points (efficiency drops)
+            rebounds_pool = total_missing_rebounds * 0.60  # 60% of rebounds
             
             print(f"\n🎯 ASSIST REDISTRIBUTION for {team}:")
             for pm in missing_playmakers:
@@ -598,6 +598,21 @@ class NBAProjectionSystem:
                         'multipliers': multipliers,
                         'source': 'historical_pattern'
                     }
+                
+                # DON'T return early - merge with assist_adjustments first!
+                # MERGE: Combine assist redistribution adjustments with historical
+                for player_name, assist_adj in assist_adjustments.items():
+                    if player_name in adjustments:
+                        existing = adjustments[player_name]['multipliers']
+                        new_assists = assist_adj['multipliers']
+                        # Take the HIGHER assist multiplier
+                        if new_assists.get('Assists', 1.0) > existing.get('Assists', 1.0):
+                            existing['Assists'] = new_assists['Assists']
+                            adjustments[player_name]['source'] = 'assist_redistribution+historical'
+                            print(f"   🔄 {player_name}: Applying assist redistribution boost (AST: {new_assists['Assists']:.2f}x)")
+                    else:
+                        adjustments[player_name] = assist_adj
+                        print(f"   ➕ {player_name}: Adding assist redistribution adjustment")
                 
                 return adjustments
             
@@ -888,6 +903,22 @@ def download_projections():
         output = BytesIO()
         df.to_csv(output, index=False)
         output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='nba_daily_projections.csv'
+        )
+        
+    except Exception as e:
+        print(f"Error in download_projections: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
         
         return send_file(
             output,
