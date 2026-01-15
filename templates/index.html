@@ -361,6 +361,24 @@
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
             const props = [];
             
+            // Stats to SKIP
+            const skipStats = [
+                '1q', '1h', '- 1q', '- 1h',
+                'double+double', 'double double',
+                'first basket', 'first team basket',
+                'triple+double', 'triple double',
+                'team total', 'odd team total'
+            ];
+            
+            // Valid stats we can compare
+            const validStats = [
+                'points', 'rebounds', 'assists', 
+                '3 point fg', '3 point', 'three', 'threes',
+                'steals', 'blocks', 'turnovers',
+                'pts+rebs+asts', 'pts+rebs', 'pts+asts', 'rebs+asts',
+                'pts+rebs+ast', 'pts+reb', 'pts+ast', 'reb+ast'
+            ];
+            
             let i = 0;
             while (i < lines.length) {
                 // Look for date pattern (MM/DD)
@@ -372,30 +390,18 @@
                     const playerName = lines[i + 4] || '';
                     const statType = lines[i + 5] || '';
                     
-                    // Skip team totals and special props
-                    if (playerName.includes('Team Total') || 
-                        statType.includes('Team Total') ||
-                        statType.includes('Double') || 
-                        statType.includes('First Basket') ||
-                        statType.includes('Triple') ||
-                        playerName.includes('Rockets') || playerName.includes('Thunder') ||
-                        playerName.includes('Hornets') || playerName.includes('Lakers') ||
-                        playerName.includes('Knicks') || playerName.includes('Warriors') ||
-                        playerName.includes('Hawks') || playerName.includes('Blazers') ||
-                        playerName.includes('Suns') || playerName.includes('Pistons') ||
-                        playerName.includes('Celtics') || playerName.includes('Heat') ||
-                        playerName.includes('Mavericks') || playerName.includes('Jazz') ||
-                        playerName.includes('Grizzlies') || playerName.includes('Magic') ||
-                        playerName.includes('Bucks') || playerName.includes('Spurs')) {
-                        i += 6;
-                        continue;
-                    }
+                    const statLower = statType.toLowerCase();
+                    const playerLower = playerName.toLowerCase();
                     
-                    // Format is: date, time, team1, team2, player, stat
-                    // Then 3 sets of: line, over_odds, line, under_odds
-                    // Set 1 = Hold (i+6 to i+9)
-                    // Set 2 = True Line (i+10 to i+13)  
-                    // Set 3 = FD (i+14 to i+17)
+                    // Skip if stat type contains any skip keywords
+                    const shouldSkip = skipStats.some(skip => 
+                        statLower.includes(skip) || playerLower.includes(skip)
+                    );
+                    
+                    // Check if it's a valid stat we can compare
+                    const isValidStat = validStats.some(valid => 
+                        statLower.includes(valid) || statLower === valid
+                    );
                     
                     // Find the end of this prop (next date or end)
                     let propEnd = lines.length;
@@ -404,6 +410,11 @@
                             propEnd = j;
                             break;
                         }
+                    }
+                    
+                    if (shouldSkip || !isValidStat) {
+                        i = propEnd;
+                        continue;
                     }
                     
                     // Collect all numeric values that look like lines (not odds)
@@ -419,16 +430,16 @@
                         }
                     }
                     
-                    // FD line should be one of the later values (after Hold and True Line)
-                    // Each book has 2 line values (over line, under line - usually same)
-                    // So FD would be around index 4-5 (0,1 = Hold, 2,3 = True, 4,5 = FD)
+                    // FD line should be one of the later values
+                    // Format: Hold (2 lines), True Line (2 lines), FD (2 lines)
+                    // So FD is at index 4-5
                     let fdLine = null;
                     if (lineValues.length >= 5) {
-                        fdLine = lineValues[4]; // 5th value is FD over line
+                        fdLine = lineValues[4];
                     } else if (lineValues.length >= 3) {
-                        fdLine = lineValues[2]; // Fallback to 3rd if less data
+                        fdLine = lineValues[2];
                     } else if (lineValues.length >= 1) {
-                        fdLine = lineValues[0]; // Fallback to first
+                        fdLine = lineValues[0];
                     }
                     
                     if (playerName && statType && fdLine !== null) {
@@ -439,16 +450,13 @@
                         });
                     }
                     
-                    i = propEnd; // Jump to next prop
+                    i = propEnd;
                 } else {
                     i++;
                 }
             }
             
             console.log('Parsed', props.length, 'props from Betstamp');
-            return props;
-        }
-            
             return props;
         }
 
@@ -488,19 +496,55 @@
                 
                 if (lastNameMatch && firstMatch) {
                     // Map stat type to projection field
-                    const normalizedStat = statType.toLowerCase().trim();
+                    const stat = statType.toLowerCase().trim();
                     
-                    if (normalizedStat === 'points') return proj.points;
-                    if (normalizedStat === 'rebounds') return proj.rebounds;
-                    if (normalizedStat === 'assists') return proj.assists;
-                    if (normalizedStat === 'pts+rebs+asts') return proj.pra;
-                    if (normalizedStat === 'pts+rebs') return proj.points + proj.rebounds;
-                    if (normalizedStat === 'pts+asts') return proj.points + proj.assists;
-                    if (normalizedStat === 'rebs+asts') return proj.rebounds + proj.assists;
-                    if (normalizedStat === '3 point fg' || normalizedStat.includes('3 point')) return proj.three_pointers_made;
-                    if (normalizedStat === 'steals' || normalizedStat.includes('steals')) return proj.steals;
-                    if (normalizedStat === 'blocks' || normalizedStat.includes('blocks')) return proj.blocks;
-                    if (normalizedStat === 'turnovers') return proj.turnovers;
+                    // Points
+                    if (stat === 'points') return proj.points;
+                    
+                    // Rebounds
+                    if (stat === 'rebounds') return proj.rebounds;
+                    
+                    // Assists
+                    if (stat === 'assists') return proj.assists;
+                    
+                    // 3 Pointers
+                    if (stat === '3 point fg' || stat === '3-pointers' || stat === 'threes' || 
+                        stat.includes('3 point') || stat.includes('three')) {
+                        return proj.three_pointers_made;
+                    }
+                    
+                    // Steals
+                    if (stat === 'steals' || stat.includes('steal')) return proj.steals;
+                    
+                    // Blocks
+                    if (stat === 'blocks' || stat.includes('block')) return proj.blocks;
+                    
+                    // Turnovers
+                    if (stat === 'turnovers' || stat.includes('turnover')) return proj.turnovers;
+                    
+                    // Combos - PRA
+                    if (stat === 'pts+rebs+asts' || stat === 'pts+reb+ast' || 
+                        stat.includes('pts+rebs+ast') || stat.includes('points+rebounds+assists')) {
+                        return proj.pra;
+                    }
+                    
+                    // Combos - PR
+                    if (stat === 'pts+rebs' || stat === 'pts+reb' || 
+                        stat.includes('pts+reb') || stat.includes('points+rebounds')) {
+                        return proj.points + proj.rebounds;
+                    }
+                    
+                    // Combos - PA
+                    if (stat === 'pts+asts' || stat === 'pts+ast' ||
+                        stat.includes('pts+ast') || stat.includes('points+assists')) {
+                        return proj.points + proj.assists;
+                    }
+                    
+                    // Combos - RA
+                    if (stat === 'rebs+asts' || stat === 'reb+ast' ||
+                        stat.includes('rebs+ast') || stat.includes('rebounds+assists')) {
+                        return proj.rebounds + proj.assists;
+                    }
                     
                     return null;
                 }
