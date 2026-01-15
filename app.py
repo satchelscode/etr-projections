@@ -90,6 +90,7 @@ class NBAProjectionSystem:
         self.learned_absence_impacts = self.load_learned_absence_impacts()
         self.opponent_defense = self.load_opponent_defense()
         self.redistribution_rates = self.load_redistribution_rates()
+        self.tuning_params = self.load_tuning_params()
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -376,7 +377,7 @@ class NBAProjectionSystem:
                     return {'success': False, 'error': f'Prediction error for {stat}: {str(e)}'}
             
             # BLEND with ETR learned rates if available (with opponent and lineup adjustments)
-            projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent, player_team, playing_teammates)
+            projections = self.blend_with_etr_rates(player_name, minutes, projections, opponent, player_team, playing_teammates, position)
             
             return {
                 'success': True,
@@ -391,15 +392,36 @@ class NBAProjectionSystem:
             traceback.print_exc()
             return {'success': False, 'error': str(e)}
     
-    def blend_with_etr_rates(self, player_name, minutes, ml_projections, opponent=None, team=None, playing_teammates=None):
+    def blend_with_etr_rates(self, player_name, minutes, ml_projections, opponent=None, team=None, playing_teammates=None, position=None):
         """
         Use ETR learned per-minute rates with lineup-based adjustments.
         
-        Key insight: When a player is OUT, teammates' rates change based on
-        observed ETR projections, not calculated redistribution.
+        Key improvements:
+        1. Sample size confidence weighting (blend with position avg for low-sample players)
+        2. Opponent defense adjustments
+        3. Lineup-based rate changes when key players are out
         """
+        projections = ml_projections.copy()
+        
+        # Load tuning parameters if available
+        tuning = getattr(self, 'tuning_params', {})
+        pos_fallback = tuning.get('position_fallback_rates', {})
+        sample_conf = tuning.get('sample_size_confidence', {})
+        
+        # Check if player has ETR rates
         if not hasattr(self, 'etr_rates') or player_name not in self.etr_rates:
-            return ml_projections
+            # Use position-based fallback rates for unknown players
+            if position and position in pos_fallback:
+                pos_rates = pos_fallback[position]
+                projections['Points'] = pos_rates.get('pts_per_min', 0.45) * minutes
+                projections['Assists'] = pos_rates.get('ast_per_min', 0.10) * minutes
+                projections['Rebounds'] = pos_rates.get('reb_per_min', 0.15) * minutes
+                projections['Three Pointers Made'] = pos_rates.get('3pm_per_min', 0.05) * minutes
+                projections['Steals'] = 0.02 * minutes
+                projections['Blocks'] = 0.02 * minutes
+                projections['Turnovers'] = 0.05 * minutes
+                projections['PRA'] = projections['Points'] + projections['Rebounds'] + projections['Assists']
+            return projections
         
         etr = self.etr_rates[player_name]
         sample_size = etr.get('sample_size', 0)
@@ -407,17 +429,40 @@ class NBAProjectionSystem:
         if sample_size < 1:
             return ml_projections
         
-        projections = ml_projections.copy()
+        # Determine confidence weight based on sample size
+        if sample_size == 1:
+            confidence = sample_conf.get('1_game', 0.5)
+        elif sample_size <= 3:
+            confidence = sample_conf.get('2-3_games', 0.75)
+        elif sample_size <= 6:
+            confidence = sample_conf.get('4-6_games', 0.9)
+        else:
+            confidence = sample_conf.get('7+_games', 1.0)
         
         # Get base rates (may be modified if key player is out)
         pts_rate = self._get_effective_rate(player_name, team, playing_teammates, 'pts')
         ast_rate = self._get_effective_rate(player_name, team, playing_teammates, 'ast')
         reb_rate = self._get_effective_rate(player_name, team, playing_teammates, 'reb')
         
-        # Calculate base projections
-        projections['Points'] = pts_rate * minutes
-        projections['Assists'] = ast_rate * minutes
-        projections['Rebounds'] = reb_rate * minutes
+        # Calculate ETR-based projections
+        etr_pts = pts_rate * minutes
+        etr_ast = ast_rate * minutes
+        etr_reb = reb_rate * minutes
+        
+        # Blend with position averages based on confidence (only if low confidence)
+        if position and position in pos_fallback and confidence < 1.0:
+            pos_rates = pos_fallback[position]
+            pos_pts = pos_rates.get('pts_per_min', 0.45) * minutes
+            pos_ast = pos_rates.get('ast_per_min', 0.10) * minutes
+            pos_reb = pos_rates.get('reb_per_min', 0.15) * minutes
+            
+            projections['Points'] = confidence * etr_pts + (1 - confidence) * pos_pts
+            projections['Assists'] = confidence * etr_ast + (1 - confidence) * pos_ast
+            projections['Rebounds'] = confidence * etr_reb + (1 - confidence) * pos_reb
+        else:
+            projections['Points'] = etr_pts
+            projections['Assists'] = etr_ast
+            projections['Rebounds'] = etr_reb
         
         # Use standard rates for other stats
         projections['Three Pointers Made'] = etr.get('3pm_per_min', 0) * minutes
@@ -481,6 +526,46 @@ class NBAProjectionSystem:
         except Exception as e:
             print(f"⚠️  Could not load redistribution rates: {e}")
             return {}
+    
+    def load_tuning_params(self):
+        """Load fine-tuning parameters for minute efficiency and sample size confidence"""
+        try:
+            tuning_file = 'models/tuning_params.json'
+            if os.path.exists(tuning_file):
+                with open(tuning_file, 'r') as f:
+                    params = json.load(f)
+                    print(f"✅ Loaded tuning params (minute efficiency, sample confidence)")
+                    return params
+            else:
+                print("⚠️  No tuning params file found, using defaults")
+                return self._default_tuning_params()
+        except Exception as e:
+            print(f"⚠️  Could not load tuning params: {e}")
+            return self._default_tuning_params()
+    
+    def _default_tuning_params(self):
+        """Return default tuning parameters"""
+        return {
+            'minute_efficiency_multipliers': {
+                '0-15': 0.71,
+                '15-25': 0.75,
+                '25-35': 1.0,
+                '35+': 1.28
+            },
+            'position_fallback_rates': {
+                'PG': {'pts_per_min': 0.48, 'ast_per_min': 0.175, 'reb_per_min': 0.126, '3pm_per_min': 0.061},
+                'SG': {'pts_per_min': 0.45, 'ast_per_min': 0.107, 'reb_per_min': 0.133, '3pm_per_min': 0.069},
+                'SF': {'pts_per_min': 0.44, 'ast_per_min': 0.083, 'reb_per_min': 0.163, '3pm_per_min': 0.057},
+                'PF': {'pts_per_min': 0.44, 'ast_per_min': 0.080, 'reb_per_min': 0.205, '3pm_per_min': 0.050},
+                'C': {'pts_per_min': 0.43, 'ast_per_min': 0.079, 'reb_per_min': 0.292, '3pm_per_min': 0.026}
+            },
+            'sample_size_confidence': {
+                '1_game': 0.3,
+                '2-3_games': 0.6,
+                '4-6_games': 0.85,
+                '7+_games': 1.0
+            }
+        }
     
     
     def get_typical_team_minutes(self, team):
