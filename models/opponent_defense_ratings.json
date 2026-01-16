@@ -1,132 +1,147 @@
 {
   "DET": {
-    "pts_mult": 0.969,
-    "ast_mult": 0.9865,
-    "reb_mult": 0.923
+    "pts_mult": 0.9599,
+    "ast_mult": 0.972,
+    "reb_mult": 0.926
   },
   "CHA": {
-    "pts_mult": 0.9893,
-    "ast_mult": 1.019,
-    "reb_mult": 0.9468
+    "pts_mult": 0.9937,
+    "ast_mult": 1.0108,
+    "reb_mult": 0.937
   },
   "BKN": {
-    "pts_mult": 1.0134,
-    "ast_mult": 1.014,
-    "reb_mult": 1.0021
+    "pts_mult": 1.0161,
+    "ast_mult": 1.0166,
+    "reb_mult": 0.998
   },
   "ORL": {
-    "pts_mult": 0.989,
-    "ast_mult": 0.9823,
-    "reb_mult": 0.9659
+    "pts_mult": 0.9888,
+    "ast_mult": 0.996,
+    "reb_mult": 0.9657
   },
   "IND": {
-    "pts_mult": 0.996,
-    "ast_mult": 0.9368,
-    "reb_mult": 1.044
+    "pts_mult": 0.9986,
+    "ast_mult": 0.9392,
+    "reb_mult": 1.0398
   },
   "DEN": {
-    "pts_mult": 0.9709,
-    "ast_mult": 0.9701,
-    "reb_mult": 0.9933
+    "pts_mult": 0.9735,
+    "ast_mult": 0.9725,
+    "reb_mult": 0.9893
   },
   "DAL": {
-    "pts_mult": 1.0441,
-    "ast_mult": 1.0037,
-    "reb_mult": 1.0581
+    "pts_mult": 1.0435,
+    "ast_mult": 1.0193,
+    "reb_mult": 1.0513
   },
   "ATL": {
-    "pts_mult": 1.0347,
-    "ast_mult": 1.0163,
-    "reb_mult": 1.011
+    "pts_mult": 1.0346,
+    "ast_mult": 1.0097,
+    "reb_mult": 1.0134
   },
   "UTA": {
-    "pts_mult": 1.0549,
-    "ast_mult": 1.0674,
-    "reb_mult": 1.0091
+    "pts_mult": 1.057,
+    "ast_mult": 1.0678,
+    "reb_mult": 1.0117
   },
   "CLE": {
-    "pts_mult": 0.968,
-    "ast_mult": 0.9034,
-    "reb_mult": 1.0882
+    "pts_mult": 0.9706,
+    "ast_mult": 0.9057,
+    "reb_mult": 1.0838
   },
   "MIA": {
-    "pts_mult": 0.9962,
-    "ast_mult": 1.0075,
-    "reb_mult": 0.9664
+    "pts_mult": 0.9947,
+    "ast_mult": 0.9896,
+    "reb_mult": 0.9755
   },
   "PHX": {
-    "pts_mult": 0.9889,
-    "ast_mult": 0.9832,
-    "reb_mult": 0.9738
+    "pts_mult": 0.9916,
+    "ast_mult": 0.9873,
+    "reb_mult": 0.9664
   },
   "LAC": {
-    "pts_mult": 1.0168,
-    "ast_mult": 1.0444,
-    "reb_mult": 0.9768
+    "pts_mult": 1.0194,
+    "ast_mult": 1.047,
+    "reb_mult": 0.9728
   },
   "WAS": {
-    "pts_mult": 1.0612,
-    "ast_mult": 1.0491,
-    "reb_mult": 1.0506
+    "pts_mult": 1.064,
+    "ast_mult": 1.0518,
+    "reb_mult": 1.0463
   },
   "CHI": {
-    "pts_mult": 1.0486,
-    "ast_mult": 1.0778,
-    "reb_mult": 1.0143
+    "pts_mult": 1.0514,
+    "ast_mult": 1.0806,
+    "reb_mult": 1.0102
   },
   "LAL": {
-    "pts_mult": 0.9976,
-    "ast_mult": 1.0005,
-    "reb_mult": 1.0351
+    "pts_mult": 0.9985,
+    "ast_mult": 1.0009,
+    "reb_mult": 1.0164
   },
   "HOU": {
-    "pts_mult": 0.933,
-    "ast_mult": 0.9645,
-    "reb_mult": 0.9437
+    "pts_mult": 0.9372,
+    "ast_mult": 0.96,
+    "reb_mult": 0.9388
   },
   "MIL": {
-    "pts_mult": 0.9958,
-    "ast_mult": 0.9687,
-    "reb_mult": 1.0171
+    "pts_mult": 1.0027,
+    "ast_mult": 0.9728,
+    "reb_mult": 1.0165
   },
   "NYK": {
-    "pts_mult": 0.9692,
-    "ast_mult": 0.9453,
-    "reb_mult": 0.9837
+    "pts_mult": 0.9774,
+    "ast_mult": 0.9656,
+    "reb_mult": 0.9814
   },
   "POR": {
-    "pts_mult": 1.0303,
-    "ast_mult": 0.9946,
-    "reb_mult": 1.0082
+    "pts_mult": 1.0333,
+    "ast_mult": 1.0187,
+    "reb_mult": 0.9912
   },
   "SAC": {
-    "pts_mult": 1.0486,
-    "ast_mult": 1.0404,
-    "reb_mult": 1.065
+    "pts_mult": 1.0514,
+    "ast_mult": 1.0431,
+    "reb_mult": 1.0607
   },
   "SAS": {
-    "pts_mult": 1.0163,
-    "ast_mult": 1.0198,
-    "reb_mult": 0.9905
+    "pts_mult": 1.0046,
+    "ast_mult": 1.0055,
+    "reb_mult": 0.9719
   },
   "OKC": {
-    "pts_mult": 0.9341,
-    "ast_mult": 0.9677,
-    "reb_mult": 0.9446
+    "pts_mult": 0.9265,
+    "ast_mult": 0.9401,
+    "reb_mult": 0.969
+  },
+  "BOS": {
+    "pts_mult": 0.9729,
+    "ast_mult": 0.9839,
+    "reb_mult": 0.9613
   },
   "NOP": {
-    "pts_mult": 1.0325,
-    "ast_mult": 1.0563,
-    "reb_mult": 1.0189
+    "pts_mult": 1.0352,
+    "ast_mult": 1.059,
+    "reb_mult": 1.0148
   },
   "TOR": {
-    "pts_mult": 0.9434,
-    "ast_mult": 0.9628,
-    "reb_mult": 1.0098
+    "pts_mult": 0.9459,
+    "ast_mult": 0.9653,
+    "reb_mult": 1.0057
   },
   "GSW": {
-    "pts_mult": 0.958,
-    "ast_mult": 1.0178,
-    "reb_mult": 0.96
+    "pts_mult": 0.9546,
+    "ast_mult": 1.0013,
+    "reb_mult": 0.9732
+  },
+  "PHI": {
+    "pts_mult": 1.0289,
+    "ast_mult": 1.0554,
+    "reb_mult": 1.0305
+  },
+  "MEM": {
+    "pts_mult": 0.9734,
+    "ast_mult": 0.9626,
+    "reb_mult": 1.0813
   }
 }
