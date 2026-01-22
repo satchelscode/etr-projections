@@ -1298,19 +1298,30 @@ def get_injuries():
         
         # Find all game containers (each contains 2 teams)
         game_containers = soup.find_all('div', class_='lineup is-nba')
-        print(f"Found {len(game_containers)} games")
+        print(f"🔍 Found {len(game_containers)} games")
         
-        for game in game_containers:
+        if not game_containers:
+            # Fallback: try without 'is-nba' class
+            game_containers = soup.find_all('div', class_='lineup')
+            print(f"🔍 Fallback: Found {len(game_containers)} lineup containers")
+        
+        for game_idx, game in enumerate(game_containers):
+            print(f"\n📋 Processing game {game_idx + 1}...")
+            
             # Each game has 2 lineup boxes (one per team)
             lineup_boxes = game.find_all('div', class_='lineup__box')
+            print(f"   Found {len(lineup_boxes)} teams in this game")
             
             # Process each team in this game
-            for box in lineup_boxes:
+            for box_idx, box in enumerate(lineup_boxes):
                 # Get team abbreviation
                 team_elem = box.find('div', class_='lineup__abbr')
                 if not team_elem:
+                    print(f"   ⚠️  Team {box_idx + 1}: No team abbreviation found")
                     continue
+                    
                 team = team_elem.text.strip()
+                print(f"   🏀 Team {box_idx + 1}: {team}")
                 
                 # Initialize team injury list if not exists
                 if team not in injuries_by_team:
@@ -1318,10 +1329,15 @@ def get_injuries():
                 
                 seen_players = set()
                 
-                # Method 1: Look for lineup__injured section (primary source)
+                # Try multiple methods to find injured players
+                
+                # Method 1: Look for lineup__injured section (dedicated injury list)
                 injured_section = box.find('ul', class_='lineup__injured')
                 if injured_section:
-                    players = injured_section.find_all('li', class_='lineup__player')
+                    print(f"      ✅ Found lineup__injured section")
+                    players = injured_section.find_all('li')
+                    print(f"      Found {len(players)} items in injured section")
+                    
                     for player in players:
                         player_link = player.find('a')
                         if not player_link:
@@ -1331,6 +1347,7 @@ def get_injuries():
                         if short_name in seen_players:
                             continue
                         
+                        # Look for injury status tag
                         status_elem = player.find('span', class_='lineup__inj')
                         if status_elem:
                             status = status_elem.text.strip().lower()
@@ -1340,13 +1357,53 @@ def get_injuries():
                                 'status': status,
                                 'full_status': get_full_status(status)
                             })
+                            print(f"         🚑 {short_name} - {status}")
+                else:
+                    print(f"      ⚠️  No lineup__injured section found")
                 
-                # Method 2: Look in main lineup for injured players (backup)
-                if not injuries_by_team[team]:
-                    main_lineup = box.find('ul', class_='lineup__main')
-                    if main_lineup:
-                        all_players = main_lineup.find_all('li', class_='lineup__player')
-                        for player in all_players:
+                # Method 2: Look through ALL player elements for injury tags
+                all_player_elements = box.find_all('li', class_='lineup__player')
+                if all_player_elements:
+                    print(f"      Scanning {len(all_player_elements)} total players for injury tags...")
+                    
+                    for player in all_player_elements:
+                        player_link = player.find('a')
+                        if not player_link:
+                            continue
+                        
+                        short_name = player_link.text.strip()
+                        if short_name in seen_players:
+                            continue
+                        
+                        # Look for any injury status indicator
+                        status_elem = player.find('span', class_='lineup__inj')
+                        if status_elem:
+                            status = status_elem.text.strip().lower()
+                            # Only add questionable/probable/out players
+                            if status in ['ques', 'prob', 'doubt', 'gtd', 'out', 'questionable', 'probable']:
+                                seen_players.add(short_name)
+                                injuries_by_team[team].append({
+                                    'player': short_name,
+                                    'status': status,
+                                    'full_status': get_full_status(status)
+                                })
+                                print(f"         🚑 {short_name} - {status}")
+                
+                # Method 3: Check for "MAY NOT PLAY" section header
+                may_not_play_header = box.find(string=re.compile(r'MAY NOT PLAY', re.IGNORECASE))
+                if may_not_play_header:
+                    print(f"      ✅ Found 'MAY NOT PLAY' section")
+                    # Find the parent container and look for players
+                    parent = may_not_play_header.find_parent()
+                    if parent:
+                        nearby_players = parent.find_next_siblings('li', class_='lineup__player', limit=10)
+                        if not nearby_players:
+                            # Try looking in children
+                            parent_ul = may_not_play_header.find_parent('ul')
+                            if parent_ul:
+                                nearby_players = parent_ul.find_all('li', class_='lineup__player')
+                        
+                        for player in nearby_players:
                             player_link = player.find('a')
                             if not player_link:
                                 continue
@@ -1355,23 +1412,27 @@ def get_injuries():
                             if short_name in seen_players:
                                 continue
                             
+                            # These players are questionable by default if in MAY NOT PLAY section
                             status_elem = player.find('span', class_='lineup__inj')
                             if status_elem:
                                 status = status_elem.text.strip().lower()
-                                if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
-                                    seen_players.add(short_name)
-                                    injuries_by_team[team].append({
-                                        'player': short_name,
-                                        'status': status,
-                                        'full_status': get_full_status(status)
-                                    })
+                            else:
+                                status = 'ques'  # Default to questionable
+                            
+                            seen_players.add(short_name)
+                            injuries_by_team[team].append({
+                                'player': short_name,
+                                'status': status,
+                                'full_status': get_full_status(status)
+                            })
+                            print(f"         🚑 {short_name} - {status} (from MAY NOT PLAY)")
         
         # Filter to only teams with injuries
         injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
         
-        print(f"Found injuries for {len(injuries_by_team)} teams")
+        print(f"\n✅ Found injuries for {len(injuries_by_team)} teams")
         for team, players in injuries_by_team.items():
-            print(f"  {team}: {[p['player'] + ' (' + p['status'] + ')' for p in players]}")
+            print(f"   {team}: {[p['player'] + ' (' + p['status'] + ')' for p in players]}")
         
         return jsonify({
             'success': True,
@@ -1379,7 +1440,7 @@ def get_injuries():
         })
         
     except Exception as e:
-        print(f"Error scraping injuries: {e}")
+        print(f"❌ Error scraping injuries: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
@@ -1388,12 +1449,15 @@ def get_full_status(status):
     """Convert short status to full status name"""
     status_map = {
         'ques': 'Questionable',
-        'prob': 'Probable', 
+        'questionable': 'Questionable',
+        'prob': 'Probable',
+        'probable': 'Probable',
         'doubt': 'Doubtful',
+        'doubtful': 'Doubtful',
         'gtd': 'Game-Time Decision',
         'out': 'Out'
     }
-    return status_map.get(status, status)
+    return status_map.get(status.lower(), status.title())
 
 
 if __name__ == '__main__':
