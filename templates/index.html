@@ -913,8 +913,12 @@
         function renderInjuryList() {
             const container = document.getElementById('injuryList');
             
+            console.log('📋 renderInjuryList() called');
+            console.log('injuryData structure:', JSON.stringify(injuryData, null, 2));
+            
             // Get teams that are playing today (from projections)
             const playingTeams = [...new Set(allProjections.map(p => p.team))].sort();
+            console.log('playingTeams:', playingTeams);
             
             if (Object.keys(injuryData).length === 0) {
                 container.innerHTML = '<div class="no-selection"><p>No injury data loaded</p></div>';
@@ -925,14 +929,34 @@
             
             // Only show teams that we have projections for
             Object.keys(injuryData).sort().forEach(team => {
+                console.log(`\nProcessing team: ${team}`);
+                
                 // Skip if this team is not in our projections
                 if (!playingTeams.includes(team)) {
+                    console.log(`  ⚠️  Skipping ${team} - not in projections`);
                     return;
                 }
                 
                 const teamData = injuryData[team];
-                const injuries = teamData.players || [];
-                const matchup = teamData.matchup || team;
+                console.log(`  teamData type:`, typeof teamData);
+                console.log(`  teamData:`, teamData);
+                
+                // Handle both old format (array) and new format (object with players array)
+                let injuries, matchup;
+                if (Array.isArray(teamData)) {
+                    // Old format
+                    injuries = teamData;
+                    matchup = team;
+                    console.log(`  Using OLD format (array)`);
+                } else {
+                    // New format
+                    injuries = teamData.players || [];
+                    matchup = teamData.matchup || team;
+                    console.log(`  Using NEW format (object)`);
+                    console.log(`  matchup: ${matchup}`);
+                }
+                
+                console.log(`  injuries count: ${injuries.length}`);
                 
                 if (injuries.length > 0) {
                     html += `<div class="team-group">
@@ -1050,6 +1074,9 @@
         async function calculateImpact() {
             const impactContent = document.getElementById('impactContent');
             
+            console.log('🎯 calculateImpact() called');
+            console.log('selectedOutPlayers:', Array.from(selectedOutPlayers));
+            
             // Group selected out players by team
             const outByTeam = {};
             selectedOutPlayers.forEach(key => {
@@ -1059,17 +1086,32 @@
                 outByTeam[team].push(player);
             });
             
+            console.log('outByTeam:', outByTeam);
+            
             // Get all player full names for matching
             const allPlayerNames = allProjections.map(p => p.player);
+            console.log('Available player names:', allPlayerNames.slice(0, 5), '...');
             
             let html = '';
             
             for (const [team, outPlayers] of Object.entries(outByTeam)) {
                 const teamProjections = allProjections.filter(p => p.team === team);
+                console.log(`Team ${team} has ${teamProjections.length} players in projections`);
                 
                 for (const shortName of outPlayers) {
+                    console.log(`\n🔍 Trying to match: "${shortName}"`);
+                    
                     // Convert abbreviated name to full name
                     const fullName = matchPlayerName(shortName, allPlayerNames);
+                    console.log(`   Matched to: "${fullName}"`);
+                    
+                    // Verify the player exists in team projections
+                    const playerData = teamProjections.find(p => p.player === fullName);
+                    if (!playerData) {
+                        console.error(`   ❌ Player "${fullName}" not found in ${team} projections!`);
+                        continue;
+                    }
+                    console.log(`   ✅ Found player data:`, playerData);
                     
                     try {
                         const response = await fetch('/calculate_scenario', {
@@ -1083,8 +1125,9 @@
                         });
                         
                         const data = await response.json();
+                        console.log('   API Response:', data);
                         
-                        if (data.success && data.adjusted_projections.length > 0) {
+                        if (data.success && data.adjusted_projections && data.adjusted_projections.length > 0) {
                             html += `
                                 <div style="margin-bottom: 24px;">
                                     <h4 style="margin-bottom: 12px; color: #ef4444;">
@@ -1144,23 +1187,36 @@
                                     </table>
                                 </div>
                             `;
-                        } else if (data.adjusted_projections && data.adjusted_projections.length === 0) {
+                        } else {
+                            console.error(`   ❌ No adjusted projections returned for ${fullName}`);
                             html += `
                                 <div style="margin-bottom: 24px;">
                                     <h4 style="margin-bottom: 12px; color: #ef4444;">
                                         🚫 ${fullName} OUT (${team})
                                     </h4>
-                                    <p style="color: #9ca3af;">No redistribution data available for this player</p>
+                                    <p style="color: #9ca3af;">No impact data calculated. Check console for details.</p>
                                 </div>
                             `;
                         }
                     } catch (error) {
                         console.error('Error calculating impact:', error);
+                        html += `
+                            <div style="margin-bottom: 24px;">
+                                <h4 style="margin-bottom: 12px; color: #ef4444;">
+                                    🚫 ${fullName} OUT (${team})
+                                </h4>
+                                <p style="color: #ef4444;">Error: ${error.message}</p>
+                            </div>
+                        `;
                     }
                 }
             }
             
-            impactContent.innerHTML = html || '<div class="no-selection"><p>No impact data available</p></div>';
+            if (html) {
+                impactContent.innerHTML = html;
+            } else {
+                impactContent.innerHTML = '<div class="no-selection"><p>No impact data available. Check browser console for details.</p></div>';
+            }
         }
         
         // Loading helpers
