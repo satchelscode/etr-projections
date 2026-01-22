@@ -1178,7 +1178,7 @@ def download_projections():
 
 @app.route('/calculate_scenario', methods=['POST'])
 def calculate_scenario():
-    """Calculate projection changes when a player is marked OUT"""
+    """Calculate projection changes when a player is marked OUT using intelligent usage redistribution"""
     try:
         data = request.get_json()
         out_player = data.get('out_player')
@@ -1191,73 +1191,131 @@ def calculate_scenario():
         if not out_player or not team:
             return jsonify({'success': False, 'error': 'Missing out_player or team'})
         
-        # Get teammates from current projections
-        teammates = [p for p in current_projections if p.get('team') == team and p.get('player') != out_player]
+        # Get all players for this team
+        team_players = [p for p in current_projections if p.get('team') == team]
+        out_player_data = next((p for p in team_players if p.get('player') == out_player), None)
+        teammates = [p for p in team_players if p.get('player') != out_player]
         
-        print(f"   Teammates found: {len(teammates)}")
+        print(f"   Team players: {len(team_players)}")
+        print(f"   Teammates (active): {len(teammates)}")
+        
+        if not out_player_data:
+            print(f"   ⚠️ OUT player not found in projections")
+            return jsonify({'success': False, 'error': f'{out_player} not found in {team} projections'})
         
         if not teammates:
             return jsonify({'success': False, 'error': f'No teammates found for {team}'})
         
-        # Check if we have redistribution data
-        redist = projection_system.redistribution_rates
+        # Calculate missing usage from OUT player
+        out_minutes = out_player_data.get('minutes', 0)
+        out_pts = out_player_data.get('points', 0)
+        out_reb = out_player_data.get('rebounds', 0) 
+        out_ast = out_player_data.get('assists', 0)
         
-        print(f"   Checking redistribution data...")
-        print(f"   Team in redist: {team in redist}")
+        print(f"   Missing usage: {out_pts:.1f} PTS, {out_reb:.1f} REB, {out_ast:.1f} AST ({out_minutes:.1f} MIN)")
+        
+        # Check if we have historical redistribution data
+        redist = projection_system.redistribution_rates
+        has_historical_data = (team in redist and 
+                              any(out_player in redist[team].get(p['player'], {}) 
+                                  for p in teammates))
         
         adjusted_projections = []
         
-        # IMPORTANT: The data structure is:
-        # redist[team][active_player][missing_player] = { with/without rates }
-        # So we need to iterate through teammates and check if out_player is in their data
-        
-        if team in redist:
-            print(f"   ✅ Team data found")
-        
-        for teammate in teammates:
-            player_name = teammate['player']
-            minutes = teammate.get('minutes', 0)
-            if minutes == 0:
-                continue
-                
-            original_pra = teammate.get('pra', 0)
+        if has_historical_data:
+            print(f"   ✅ Using historical ETR redistribution data")
             
-            # Default: no change
-            new_pts = teammate.get('points', 0)
-            new_ast = teammate.get('assists', 0)
-            new_reb = teammate.get('rebounds', 0)
-            
-            # The data structure is: redist[team][active_player][missing_player]
-            # So we check if this teammate has data for when out_player is missing
-            if team in redist and player_name in redist[team]:
-                if out_player in redist[team][player_name]:
-                    boost_data = redist[team][player_name][out_player]
+            # Use historical rates from ETR
+            for teammate in teammates:
+                player_name = teammate['player']
+                minutes = teammate.get('minutes', 0)
+                if minutes == 0:
+                    continue
                     
-                    # Use "without" rates (when out_player is missing)
+                # Try to get historical data
+                new_pts = teammate.get('points', 0)
+                new_ast = teammate.get('assists', 0)
+                new_reb = teammate.get('rebounds', 0)
+                
+                if player_name in redist.get(team, {}) and out_player in redist[team][player_name]:
+                    boost_data = redist[team][player_name][out_player]
                     new_pts = boost_data.get('without_pts_rate', new_pts / minutes) * minutes
                     new_ast = boost_data.get('without_ast_rate', new_ast / minutes) * minutes
                     new_reb = boost_data.get('without_reb_rate', new_reb / minutes) * minutes
-                    
-                    print(f"   📈 {player_name}: PTS {teammate['points']:.1f} → {new_pts:.1f}, AST {teammate['assists']:.1f} → {new_ast:.1f}, REB {teammate['rebounds']:.1f} → {new_reb:.1f}")
+                    print(f"      📊 {player_name}: Historical data found")
+                
+                new_pra = new_pts + new_ast + new_reb
+                
+                adjusted_projections.append({
+                    'player': player_name,
+                    'team': team,
+                    'position': teammate.get('position', ''),
+                    'minutes': minutes,
+                    'original_pts': round(teammate.get('points', 0), 2),
+                    'new_pts': round(new_pts, 2),
+                    'pts_change': round(new_pts - teammate.get('points', 0), 2),
+                    'original_reb': round(teammate.get('rebounds', 0), 2),
+                    'new_reb': round(new_reb, 2),
+                    'reb_change': round(new_reb - teammate.get('rebounds', 0), 2),
+                    'original_ast': round(teammate.get('assists', 0), 2),
+                    'new_ast': round(new_ast, 2),
+                    'ast_change': round(new_ast - teammate.get('assists', 0), 2),
+                    'original_pra': round(teammate.get('pra', 0), 2),
+                    'new_pra': round(new_pra, 2),
+                    'pra_change': round(new_pra - teammate.get('pra', 0), 2)
+                })
+        else:
+            print(f"   ⚠️ No historical data - using intelligent redistribution")
             
-            new_pra = new_pts + new_ast + new_reb
-            pra_change = new_pra - original_pra
+            # Calculate total current usage for active teammates
+            total_current_usage = sum(p.get('points', 0) + p.get('rebounds', 0) + p.get('assists', 0) 
+                                    for p in teammates)
             
-            adjusted_projections.append({
-                'player': player_name,
-                'team': team,
-                'position': teammate.get('position', ''),
-                'minutes': minutes,
-                'original_pra': round(original_pra, 2),
-                'new_pra': round(new_pra, 2),
-                'pra_change': round(pra_change, 2),
-                'original_pts': round(teammate.get('points', 0), 2),
-                'new_pts': round(new_pts, 2),
-                'original_reb': round(teammate.get('rebounds', 0), 2),
-                'new_reb': round(new_reb, 2),
-                'original_ast': round(teammate.get('assists', 0), 2),
-                'new_ast': round(new_ast, 2)
-            })
+            # Redistribute based on current usage share
+            for teammate in teammates:
+                player_name = teammate['player']
+                minutes = teammate.get('minutes', 0)
+                if minutes == 0:
+                    continue
+                
+                current_pts = teammate.get('points', 0)
+                current_reb = teammate.get('rebounds', 0)
+                current_ast = teammate.get('assists', 0)
+                current_usage = current_pts + current_reb + current_ast
+                
+                # Calculate this player's share of team usage
+                usage_share = current_usage / total_current_usage if total_current_usage > 0 else 0
+                
+                # Redistribute missing stats proportionally
+                pts_boost = out_pts * usage_share * (current_pts / current_usage if current_usage > 0 else 0.4)
+                reb_boost = out_reb * usage_share * (current_reb / current_usage if current_usage > 0 else 0.3)
+                ast_boost = out_ast * usage_share * (current_ast / current_usage if current_usage > 0 else 0.3)
+                
+                new_pts = current_pts + pts_boost
+                new_reb = current_reb + reb_boost
+                new_ast = current_ast + ast_boost
+                new_pra = new_pts + new_reb + new_ast
+                
+                print(f"      🧮 {player_name}: Usage {usage_share*100:.1f}% → +{pts_boost:.1f} PTS, +{reb_boost:.1f} REB, +{ast_boost:.1f} AST")
+                
+                adjusted_projections.append({
+                    'player': player_name,
+                    'team': team,
+                    'position': teammate.get('position', ''),
+                    'minutes': minutes,
+                    'original_pts': round(current_pts, 2),
+                    'new_pts': round(new_pts, 2),
+                    'pts_change': round(pts_boost, 2),
+                    'original_reb': round(current_reb, 2),
+                    'new_reb': round(new_reb, 2),
+                    'reb_change': round(reb_boost, 2),
+                    'original_ast': round(current_ast, 2),
+                    'new_ast': round(new_ast, 2),
+                    'ast_change': round(ast_boost, 2),
+                    'original_pra': round(current_pts + current_reb + current_ast, 2),
+                    'new_pra': round(new_pra, 2),
+                    'pra_change': round(pts_boost + reb_boost + ast_boost, 2)
+                })
         
         # Sort by PRA change descending
         adjusted_projections.sort(key=lambda x: x['pra_change'], reverse=True)
