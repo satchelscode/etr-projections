@@ -1420,10 +1420,11 @@ def get_injuries():
                 else:
                     print(f"      ⚠️  No lineup__injured section found")
                 
-                # Method 2: Look through ALL player elements for injury tags
+                # Method 2: Look through ALL player elements for injury tags (ONLY in this box)
+                # CRITICAL: Use box.find_all() not game.find_all() to stay within this team's section
                 all_player_elements = box.find_all('li', class_='lineup__player')
                 if all_player_elements:
-                    print(f"      Scanning {len(all_player_elements)} total players for injury tags...")
+                    print(f"      Scanning {len(all_player_elements)} players in {team}'s box for injury tags...")
                     
                     for player in all_player_elements:
                         player_link = player.find('a')
@@ -1446,12 +1447,12 @@ def get_injuries():
                                     'status': status,
                                     'full_status': get_full_status(status)
                                 })
-                                print(f"         🚑 {short_name} - {status}")
+                                print(f"         🚑 {short_name} - {status} (in {team})")
                 
-                # Method 3: Check for "MAY NOT PLAY" section header
+                # Method 3: Check for "MAY NOT PLAY" section header (ONLY in this box)
                 may_not_play_header = box.find(string=re.compile(r'MAY NOT PLAY', re.IGNORECASE))
                 if may_not_play_header:
-                    print(f"      ✅ Found 'MAY NOT PLAY' section")
+                    print(f"      ✅ Found 'MAY NOT PLAY' section in {team}")
                     # Find the parent container and look for players
                     parent = may_not_play_header.find_parent()
                     if parent:
@@ -1484,11 +1485,15 @@ def get_injuries():
                                 'status': status,
                                 'full_status': get_full_status(status)
                             })
-                            print(f"         🚑 {short_name} - {status} (from MAY NOT PLAY)")
+                            print(f"         🚑 {short_name} - {status} (from MAY NOT PLAY in {team})")
                 
                 # Add all players found for this team to the main dict
-                injuries_by_team[team].extend(players_found_this_team)
-                print(f"      ✅ Added {len(players_found_this_team)} players to {team}")
+                if players_found_this_team:
+                    injuries_by_team[team].extend(players_found_this_team)
+                    print(f"      ✅ Added {len(players_found_this_team)} players to {team}")
+                    print(f"      Players: {[p['player'] for p in players_found_this_team]}")
+                else:
+                    print(f"      ℹ️  No injured players found for {team}")
         
         # Filter to only teams with injuries
         injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
