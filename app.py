@@ -1257,7 +1257,7 @@ def calculate_scenario():
 
 @app.route('/get_injuries', methods=['GET'])
 def get_injuries():
-    """Scrape Rotowire for questionable/probable players from MAY NOT PLAY section only"""
+    """Scrape Rotowire for questionable/probable players"""
     try:
         url = "https://www.rotowire.com/basketball/nba-lineups.php"
         headers = {
@@ -1273,6 +1273,7 @@ def get_injuries():
         
         # Find all lineup boxes (each game has 2 teams)
         lineup_boxes = soup.find_all('div', class_='lineup__box')
+        print(f"Found {len(lineup_boxes)} lineup boxes")
         
         for box in lineup_boxes:
             # Get team abbreviation
@@ -1284,50 +1285,76 @@ def get_injuries():
             if team not in injuries_by_team:
                 injuries_by_team[team] = []
             
-            # ONLY look in the "MAY NOT PLAY" section (lineup__injured)
+            seen_players = set()
+            
+            # Method 1: Look for lineup__injured section
             injured_section = box.find('ul', class_='lineup__injured')
-            if not injured_section:
-                continue
-            
-            # Find players in the injured section only
-            players = injured_section.find_all('li', class_='lineup__player')
-            
-            seen_players = set()  # Avoid duplicates
-            
-            for player in players:
-                player_link = player.find('a')
-                if not player_link:
-                    continue
-                
-                short_name = player_link.text.strip()  # e.g., "J. Embiid"
-                
-                # Skip if we've already seen this player
-                if short_name in seen_players:
-                    continue
-                seen_players.add(short_name)
-                
-                # Check for injury status
-                status_elem = player.find('span', class_='lineup__inj')
-                if status_elem:
-                    status = status_elem.text.strip().lower()
-                    # Include ques, prob, doubt, gtd, out
-                    if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
+            if injured_section:
+                players = injured_section.find_all('li', class_='lineup__player')
+                for player in players:
+                    player_link = player.find('a')
+                    if not player_link:
+                        continue
+                    
+                    short_name = player_link.text.strip()
+                    if short_name in seen_players:
+                        continue
+                    
+                    status_elem = player.find('span', class_='lineup__inj')
+                    if status_elem:
+                        status = status_elem.text.strip().lower()
+                        seen_players.add(short_name)
                         injuries_by_team[team].append({
                             'player': short_name,
                             'status': status,
-                            'full_status': 'Questionable' if status == 'ques' else 
-                                          'Probable' if status == 'prob' else
-                                          'Doubtful' if status == 'doubt' else
-                                          'Game-Time Decision' if status == 'gtd' else
-                                          'Out' if status == 'out' else status
+                            'full_status': get_full_status(status)
                         })
+            
+            # Method 2: If no injured section found, look for players with injury tags
+            # that are NOT in the starting lineup (first 5 players in lineup__main)
+            if not injuries_by_team[team]:
+                # Get starting 5 names to exclude
+                main_lineup = box.find('ul', class_='lineup__main')
+                starters = set()
+                if main_lineup:
+                    for li in main_lineup.find_all('li', class_='lineup__player')[:5]:
+                        a = li.find('a')
+                        if a:
+                            starters.add(a.text.strip())
+                
+                # Find ALL players with injury status
+                all_players = box.find_all('li', class_='lineup__player')
+                for player in all_players:
+                    player_link = player.find('a')
+                    if not player_link:
+                        continue
+                    
+                    short_name = player_link.text.strip()
+                    
+                    # Skip if already seen or if it's a starter (to avoid duplicates)
+                    if short_name in seen_players:
+                        continue
+                    
+                    status_elem = player.find('span', class_='lineup__inj')
+                    if status_elem:
+                        status = status_elem.text.strip().lower()
+                        if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
+                            seen_players.add(short_name)
+                            # Only add if NOT a starter (starters with tags are duplicates)
+                            # OR if there are no starters found (fallback)
+                            if short_name not in starters or not starters:
+                                injuries_by_team[team].append({
+                                    'player': short_name,
+                                    'status': status,
+                                    'full_status': get_full_status(status)
+                                })
         
         # Filter to only teams with injuries
         injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
         
         print(f"Found injuries for {len(injuries_by_team)} teams")
         for team, players in injuries_by_team.items():
-            print(f"  {team}: {[p['player'] for p in players]}")
+            print(f"  {team}: {[p['player'] + ' (' + p['status'] + ')' for p in players]}")
         
         return jsonify({
             'success': True,
@@ -1339,6 +1366,17 @@ def get_injuries():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
+
+def get_full_status(status):
+    """Convert short status to full status name"""
+    status_map = {
+        'ques': 'Questionable',
+        'prob': 'Probable', 
+        'doubt': 'Doubtful',
+        'gtd': 'Game-Time Decision',
+        'out': 'Out'
+    }
+    return status_map.get(status, status)
 
 
 if __name__ == '__main__':
