@@ -930,12 +930,14 @@
                     return;
                 }
                 
-                const injuries = injuryData[team] || [];
+                const teamData = injuryData[team];
+                const injuries = teamData.players || [];
+                const matchup = teamData.matchup || team;
                 
                 if (injuries.length > 0) {
                     html += `<div class="team-group">
                         <div class="team-header">
-                            <span class="team-abbr">${team}</span>
+                            <span class="team-abbr">${matchup}</span>
                             <span style="color: #9ca3af; font-weight: 400; font-size: 0.85rem;">(${injuries.length} questionable)</span>
                         </div>`;
                     
