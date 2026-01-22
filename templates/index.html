@@ -969,42 +969,13 @@
             
             renderInjuryList();
             
-            // Calculate impact and update projections if any players are marked out
+            // Calculate impact - ONLY show in scenarios tab, don't modify projections tab
             if (selectedOutPlayers.size > 0) {
                 await calculateImpact();
-                await updateProjectionsWithInjuries();
                 updateInjuryBanner();
             } else {
                 document.getElementById('impactContent').innerHTML = '<div class="no-selection"><p>Mark a player as OUT to see teammate impact</p></div>';
-                // Reset projections to original - reload from original data
-                await reloadOriginalProjections();
                 hideInjuryBanner();
-            }
-        }
-        
-        // Reload original projections
-        async function reloadOriginalProjections() {
-            // Re-fetch original projections
-            const fileInput = document.getElementById('dfsFile');
-            if (!fileInput.files[0]) return;
-            
-            const formData = new FormData();
-            formData.append('dfs_projections', fileInput.files[0]);
-            
-            try {
-                const response = await fetch('/generate_daily', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    allProjections = data.projections;
-                    renderTable();
-                }
-            } catch (error) {
-                console.error('Error reloading projections:', error);
             }
         }
         
@@ -1037,82 +1008,8 @@
         async function clearAllInjuries() {
             selectedOutPlayers.clear();
             renderInjuryList();
-            await reloadOriginalProjections();
             hideInjuryBanner();
             document.getElementById('impactContent').innerHTML = '<div class="no-selection"><p>Mark a player as OUT to see teammate impact</p></div>';
-        }
-        
-        // Update main projections table with injury adjustments
-        async function updateProjectionsWithInjuries() {
-            if (selectedOutPlayers.size === 0) {
-                renderTable();
-                return;
-            }
-            
-            // Group selected out players by team
-            const outByTeam = {};
-            selectedOutPlayers.forEach(key => {
-                const [team, ...playerParts] = key.split('-');
-                const player = playerParts.join('-');
-                if (!outByTeam[team]) outByTeam[team] = [];
-                outByTeam[team].push(player);
-            });
-            
-            // Get all player full names for matching
-            const allPlayerNames = allProjections.map(p => p.player);
-            
-            // Create a map to store all adjustments
-            const adjustmentsByPlayer = {};
-            
-            // Calculate adjustments for each OUT player
-            for (const [team, outPlayers] of Object.entries(outByTeam)) {
-                const teamProjections = allProjections.filter(p => p.team === team);
-                
-                for (const shortName of outPlayers) {
-                    const fullName = matchPlayerName(shortName, allPlayerNames);
-                    
-                    try {
-                        const response = await fetch('/calculate_scenario', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                out_player: fullName,
-                                team: team,
-                                projections: teamProjections
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success && data.adjusted_projections.length > 0) {
-                            // Store adjustments for each player
-                            data.adjusted_projections.forEach(adj => {
-                                adjustmentsByPlayer[adj.player] = adj;
-                            });
-                        }
-                    } catch (error) {
-                        console.error('Error calculating impact:', error);
-                    }
-                }
-            }
-            
-            // Apply adjustments to projections
-            allProjections = allProjections.map(proj => {
-                if (adjustmentsByPlayer[proj.player]) {
-                    const adj = adjustmentsByPlayer[proj.player];
-                    return {
-                        ...proj,
-                        points: adj.new_pts,
-                        rebounds: adj.new_reb,
-                        assists: adj.new_ast,
-                        pra: adj.new_pra
-                    };
-                }
-                return proj;
-            });
-            
-            // Update the display
-            renderTable();
         }
         
         // Match abbreviated name (J. Embiid) to full name (Joel Embiid)
