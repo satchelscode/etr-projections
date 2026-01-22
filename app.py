@@ -1185,11 +1185,16 @@ def calculate_scenario():
         team = data.get('team')
         current_projections = data.get('projections', [])
         
+        print(f"\n🎯 SCENARIO CALCULATION:")
+        print(f"   OUT: {out_player} ({team})")
+        
         if not out_player or not team:
             return jsonify({'success': False, 'error': 'Missing out_player or team'})
         
         # Get teammates from current projections
         teammates = [p for p in current_projections if p.get('team') == team and p.get('player') != out_player]
+        
+        print(f"   Teammates found: {len(teammates)}")
         
         if not teammates:
             return jsonify({'success': False, 'error': f'No teammates found for {team}'})
@@ -1197,17 +1202,28 @@ def calculate_scenario():
         # Check if we have redistribution data for this player being out
         redist = projection_system.redistribution_rates
         
+        print(f"   Checking redistribution data...")
+        print(f"   Team in redist: {team in redist}")
+        if team in redist:
+            print(f"   Out player in team data: {out_player in redist[team]}")
+            if out_player in redist[team]:
+                affected = list(redist[team][out_player].keys())
+                print(f"   ✅ Redistribution data found for {len(affected)} teammates")
+        
         adjusted_projections = []
         
         for teammate in teammates:
             player_name = teammate['player']
-            minutes = teammate['minutes']
-            original_pra = teammate['pra']
+            minutes = teammate.get('minutes', 0)
+            if minutes == 0:
+                continue
+                
+            original_pra = teammate.get('pra', 0)
             
             # Default: no change
-            new_pts = teammate['points']
-            new_ast = teammate['assists']
-            new_reb = teammate['rebounds']
+            new_pts = teammate.get('points', 0)
+            new_ast = teammate.get('assists', 0)
+            new_reb = teammate.get('rebounds', 0)
             
             # Check if we have data for when out_player is out
             if team in redist and out_player in redist[team]:
@@ -1215,9 +1231,15 @@ def calculate_scenario():
                     boost_data = redist[team][out_player][player_name]
                     
                     # Use "without" rates instead of base rates
-                    new_pts = boost_data.get('without_pts_rate', teammate['points']/minutes) * minutes
-                    new_ast = boost_data.get('without_ast_rate', teammate['assists']/minutes) * minutes
-                    new_reb = boost_data.get('without_reb_rate', teammate['rebounds']/minutes) * minutes
+                    base_pts_rate = teammate['points'] / minutes if minutes > 0 else 0
+                    base_ast_rate = teammate['assists'] / minutes if minutes > 0 else 0
+                    base_reb_rate = teammate['rebounds'] / minutes if minutes > 0 else 0
+                    
+                    new_pts = boost_data.get('without_pts_rate', base_pts_rate) * minutes
+                    new_ast = boost_data.get('without_ast_rate', base_ast_rate) * minutes
+                    new_reb = boost_data.get('without_reb_rate', base_reb_rate) * minutes
+                    
+                    print(f"   📈 {player_name}: PTS {teammate['points']:.1f} → {new_pts:.1f}")
             
             new_pra = new_pts + new_ast + new_reb
             pra_change = new_pra - original_pra
@@ -1230,16 +1252,18 @@ def calculate_scenario():
                 'original_pra': round(original_pra, 2),
                 'new_pra': round(new_pra, 2),
                 'pra_change': round(pra_change, 2),
-                'original_pts': round(teammate['points'], 2),
+                'original_pts': round(teammate.get('points', 0), 2),
                 'new_pts': round(new_pts, 2),
-                'original_reb': round(teammate['rebounds'], 2),
+                'original_reb': round(teammate.get('rebounds', 0), 2),
                 'new_reb': round(new_reb, 2),
-                'original_ast': round(teammate['assists'], 2),
+                'original_ast': round(teammate.get('assists', 0), 2),
                 'new_ast': round(new_ast, 2)
             })
         
         # Sort by PRA change descending
         adjusted_projections.sort(key=lambda x: x['pra_change'], reverse=True)
+        
+        print(f"   ✅ Returning {len(adjusted_projections)} adjusted projections")
         
         return jsonify({
             'success': True,
@@ -1249,7 +1273,7 @@ def calculate_scenario():
         })
         
     except Exception as e:
-        print(f"Error in calculate_scenario: {e}")
+        print(f"❌ Error in calculate_scenario: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
@@ -1257,7 +1281,7 @@ def calculate_scenario():
 
 @app.route('/get_injuries', methods=['GET'])
 def get_injuries():
-    """Scrape Rotowire for questionable/probable players"""
+    """Scrape Rotowire for questionable/probable players, properly grouped by game"""
     try:
         url = "https://www.rotowire.com/basketball/nba-lineups.php"
         headers = {
@@ -1269,85 +1293,78 @@ def get_injuries():
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        # Store injuries grouped by team
         injuries_by_team = {}
         
-        # Find all lineup boxes (each game has 2 teams)
-        lineup_boxes = soup.find_all('div', class_='lineup__box')
-        print(f"Found {len(lineup_boxes)} lineup boxes")
+        # Find all game containers (each contains 2 teams)
+        game_containers = soup.find_all('div', class_='lineup is-nba')
+        print(f"Found {len(game_containers)} games")
         
-        for box in lineup_boxes:
-            # Get team abbreviation
-            team_elem = box.find('div', class_='lineup__abbr')
-            if not team_elem:
-                continue
-            team = team_elem.text.strip()
+        for game in game_containers:
+            # Each game has 2 lineup boxes (one per team)
+            lineup_boxes = game.find_all('div', class_='lineup__box')
             
-            if team not in injuries_by_team:
-                injuries_by_team[team] = []
-            
-            seen_players = set()
-            
-            # Method 1: Look for lineup__injured section
-            injured_section = box.find('ul', class_='lineup__injured')
-            if injured_section:
-                players = injured_section.find_all('li', class_='lineup__player')
-                for player in players:
-                    player_link = player.find('a')
-                    if not player_link:
-                        continue
-                    
-                    short_name = player_link.text.strip()
-                    if short_name in seen_players:
-                        continue
-                    
-                    status_elem = player.find('span', class_='lineup__inj')
-                    if status_elem:
-                        status = status_elem.text.strip().lower()
-                        seen_players.add(short_name)
-                        injuries_by_team[team].append({
-                            'player': short_name,
-                            'status': status,
-                            'full_status': get_full_status(status)
-                        })
-            
-            # Method 2: If no injured section found, look for players with injury tags
-            # that are NOT in the starting lineup (first 5 players in lineup__main)
-            if not injuries_by_team[team]:
-                # Get starting 5 names to exclude
-                main_lineup = box.find('ul', class_='lineup__main')
-                starters = set()
-                if main_lineup:
-                    for li in main_lineup.find_all('li', class_='lineup__player')[:5]:
-                        a = li.find('a')
-                        if a:
-                            starters.add(a.text.strip())
+            # Process each team in this game
+            for box in lineup_boxes:
+                # Get team abbreviation
+                team_elem = box.find('div', class_='lineup__abbr')
+                if not team_elem:
+                    continue
+                team = team_elem.text.strip()
                 
-                # Find ALL players with injury status
-                all_players = box.find_all('li', class_='lineup__player')
-                for player in all_players:
-                    player_link = player.find('a')
-                    if not player_link:
-                        continue
-                    
-                    short_name = player_link.text.strip()
-                    
-                    # Skip if already seen or if it's a starter (to avoid duplicates)
-                    if short_name in seen_players:
-                        continue
-                    
-                    status_elem = player.find('span', class_='lineup__inj')
-                    if status_elem:
-                        status = status_elem.text.strip().lower()
-                        if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
+                # Initialize team injury list if not exists
+                if team not in injuries_by_team:
+                    injuries_by_team[team] = []
+                
+                seen_players = set()
+                
+                # Method 1: Look for lineup__injured section (primary source)
+                injured_section = box.find('ul', class_='lineup__injured')
+                if injured_section:
+                    players = injured_section.find_all('li', class_='lineup__player')
+                    for player in players:
+                        player_link = player.find('a')
+                        if not player_link:
+                            continue
+                        
+                        short_name = player_link.text.strip()
+                        if short_name in seen_players:
+                            continue
+                        
+                        status_elem = player.find('span', class_='lineup__inj')
+                        if status_elem:
+                            status = status_elem.text.strip().lower()
                             seen_players.add(short_name)
-                            # Only add if NOT a starter (starters with tags are duplicates)
-                            # OR if there are no starters found (fallback)
-                            if short_name not in starters or not starters:
-                                injuries_by_team[team].append({
-                                    'player': short_name,
-                                    'status': status,
-                                    'full_status': get_full_status(status)
-                                })
+                            injuries_by_team[team].append({
+                                'player': short_name,
+                                'status': status,
+                                'full_status': get_full_status(status)
+                            })
+                
+                # Method 2: Look in main lineup for injured players (backup)
+                if not injuries_by_team[team]:
+                    main_lineup = box.find('ul', class_='lineup__main')
+                    if main_lineup:
+                        all_players = main_lineup.find_all('li', class_='lineup__player')
+                        for player in all_players:
+                            player_link = player.find('a')
+                            if not player_link:
+                                continue
+                            
+                            short_name = player_link.text.strip()
+                            if short_name in seen_players:
+                                continue
+                            
+                            status_elem = player.find('span', class_='lineup__inj')
+                            if status_elem:
+                                status = status_elem.text.strip().lower()
+                                if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
+                                    seen_players.add(short_name)
+                                    injuries_by_team[team].append({
+                                        'player': short_name,
+                                        'status': status,
+                                        'full_status': get_full_status(status)
+                                    })
         
         # Filter to only teams with injuries
         injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
