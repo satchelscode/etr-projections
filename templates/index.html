@@ -972,6 +972,38 @@
             }
         }
         
+        // Match abbreviated name (J. Embiid) to full name (Joel Embiid)
+        function matchPlayerName(shortName, fullNames) {
+            // If exact match exists, use it
+            if (fullNames.includes(shortName)) {
+                return shortName;
+            }
+            
+            // Parse short name: "J. Embiid" -> first initial "J", last name "Embiid"
+            const parts = shortName.split('. ');
+            if (parts.length !== 2) {
+                // Try matching by last name only
+                const lastName = shortName.split(' ').pop();
+                const match = fullNames.find(fn => fn.toLowerCase().endsWith(lastName.toLowerCase()));
+                return match || shortName;
+            }
+            
+            const firstInitial = parts[0].toUpperCase();
+            const lastName = parts[1];
+            
+            // Find full name that starts with initial and ends with last name
+            const match = fullNames.find(fullName => {
+                const fnParts = fullName.split(' ');
+                if (fnParts.length < 2) return false;
+                const fnFirst = fnParts[0];
+                const fnLast = fnParts[fnParts.length - 1];
+                return fnFirst.toUpperCase().startsWith(firstInitial) && 
+                       fnLast.toLowerCase() === lastName.toLowerCase();
+            });
+            
+            return match || shortName;
+        }
+        
         // Calculate impact
         async function calculateImpact() {
             const impactContent = document.getElementById('impactContent');
@@ -979,23 +1011,30 @@
             // Group selected out players by team
             const outByTeam = {};
             selectedOutPlayers.forEach(key => {
-                const [team, player] = key.split('-');
+                const [team, ...playerParts] = key.split('-');
+                const player = playerParts.join('-'); // Handle names with hyphens
                 if (!outByTeam[team]) outByTeam[team] = [];
                 outByTeam[team].push(player);
             });
+            
+            // Get all player full names for matching
+            const allPlayerNames = allProjections.map(p => p.player);
             
             let html = '';
             
             for (const [team, outPlayers] of Object.entries(outByTeam)) {
                 const teamProjections = allProjections.filter(p => p.team === team);
                 
-                for (const outPlayer of outPlayers) {
+                for (const shortName of outPlayers) {
+                    // Convert abbreviated name to full name
+                    const fullName = matchPlayerName(shortName, allPlayerNames);
+                    
                     try {
                         const response = await fetch('/calculate_scenario', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                out_player: outPlayer,
+                                out_player: fullName,
                                 team: team,
                                 projections: teamProjections
                             })
@@ -1007,7 +1046,7 @@
                             html += `
                                 <div style="margin-bottom: 24px;">
                                     <h4 style="margin-bottom: 12px; color: #ef4444;">
-                                        🚫 ${outPlayer} OUT (${team})
+                                        🚫 ${fullName} OUT (${team})
                                     </h4>
                                     <table class="impact-table">
                                         <thead>
@@ -1039,7 +1078,7 @@
                             html += `
                                 <div style="margin-bottom: 24px;">
                                     <h4 style="margin-bottom: 12px; color: #ef4444;">
-                                        🚫 ${outPlayer} OUT (${team})
+                                        🚫 ${fullName} OUT (${team})
                                     </h4>
                                     <p style="color: #9ca3af;">No redistribution data available for this player</p>
                                 </div>
