@@ -7,6 +7,9 @@ import os
 import math
 from io import StringIO, BytesIO
 import json
+import requests
+from bs4 import BeautifulSoup
+import re
 
 app = Flask(__name__)
 
@@ -1171,6 +1174,232 @@ def download_projections():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/get_injuries', methods=['GET'])
+def get_injuries():
+    """Scrape Rotowire for questionable/probable players"""
+    try:
+        url = 'https://www.rotowire.com/basketball/nba-lineups.php'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        injuries_by_team = {}
+        
+        # Find all lineup cards
+        lineup_cards = soup.find_all('div', class_='lineup__box')
+        
+        for card in lineup_cards:
+            # Get team abbreviation
+            team_elem = card.find('div', class_='lineup__abbr')
+            if not team_elem:
+                continue
+            team = team_elem.text.strip()
+            
+            injuries_by_team[team] = {
+                'questionable': [],
+                'probable': [],
+                'doubtful': [],
+                'out': []
+            }
+            
+            # Find all players in lineup
+            players = card.find_all('li', class_='lineup__player')
+            
+            for player in players:
+                player_link = player.find('a')
+                if not player_link:
+                    continue
+                    
+                player_name = player_link.text.strip()
+                
+                # Check for injury status
+                status_elem = player.find('span', class_='lineup__inj')
+                if status_elem:
+                    status_text = status_elem.text.strip().lower()
+                    
+                    if 'ques' in status_text or 'gtd' in status_text:
+                        injuries_by_team[team]['questionable'].append(player_name)
+                    elif 'prob' in status_text:
+                        injuries_by_team[team]['probable'].append(player_name)
+                    elif 'doub' in status_text:
+                        injuries_by_team[team]['doubtful'].append(player_name)
+                    elif 'out' in status_text:
+                        injuries_by_team[team]['out'].append(player_name)
+        
+        # Filter to only teams with injuries
+        injuries_by_team = {team: data for team, data in injuries_by_team.items() 
+                          if any(data[status] for status in data)}
+        
+        return jsonify({
+            'success': True,
+            'injuries': injuries_by_team
+        })
+        
+    except requests.RequestException as e:
+        print(f"Error fetching Rotowire: {e}")
+        return jsonify({'success': False, 'error': f'Could not fetch injury data: {str(e)}'})
+    except Exception as e:
+        print(f"Error parsing injuries: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/calculate_scenario', methods=['POST'])
+def calculate_scenario():
+    """Calculate projection changes when a player is marked OUT"""
+    try:
+        data = request.get_json()
+        out_player = data.get('out_player')
+        team = data.get('team')
+        current_projections = data.get('projections', [])
+        
+        if not out_player or not team:
+            return jsonify({'success': False, 'error': 'Missing out_player or team'})
+        
+        # Get teammates from current projections
+        teammates = [p for p in current_projections if p.get('team') == team and p.get('player') != out_player]
+        
+        if not teammates:
+            return jsonify({'success': False, 'error': f'No teammates found for {team}'})
+        
+        # Check if we have redistribution data for this player being out
+        redist = projection_system.redistribution_rates
+        
+        adjusted_projections = []
+        
+        for teammate in teammates:
+            player_name = teammate['player']
+            minutes = teammate['minutes']
+            original_pra = teammate['pra']
+            
+            # Default: no change
+            new_pts = teammate['points']
+            new_ast = teammate['assists']
+            new_reb = teammate['rebounds']
+            
+            # Check if we have data for when out_player is out
+            if team in redist and out_player in redist[team]:
+                if player_name in redist[team][out_player]:
+                    boost_data = redist[team][out_player][player_name]
+                    
+                    # Use "without" rates instead of base rates
+                    new_pts = boost_data.get('without_pts_rate', teammate['points']/minutes) * minutes
+                    new_ast = boost_data.get('without_ast_rate', teammate['assists']/minutes) * minutes
+                    new_reb = boost_data.get('without_reb_rate', teammate['rebounds']/minutes) * minutes
+            
+            new_pra = new_pts + new_ast + new_reb
+            pra_change = new_pra - original_pra
+            
+            adjusted_projections.append({
+                'player': player_name,
+                'team': team,
+                'position': teammate.get('position', ''),
+                'minutes': minutes,
+                'original_pra': round(original_pra, 2),
+                'new_pra': round(new_pra, 2),
+                'pra_change': round(pra_change, 2),
+                'original_pts': round(teammate['points'], 2),
+                'new_pts': round(new_pts, 2),
+                'original_reb': round(teammate['rebounds'], 2),
+                'new_reb': round(new_reb, 2),
+                'original_ast': round(teammate['assists'], 2),
+                'new_ast': round(new_ast, 2)
+            })
+        
+        # Sort by PRA change descending
+        adjusted_projections.sort(key=lambda x: x['pra_change'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'out_player': out_player,
+            'team': team,
+            'adjusted_projections': adjusted_projections
+        })
+        
+    except Exception as e:
+        print(f"Error in calculate_scenario: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/get_injuries', methods=['GET'])
+def get_injuries():
+    """Scrape Rotowire for questionable/probable players"""
+    try:
+        url = "https://www.rotowire.com/basketball/nba-lineups.php"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        injuries_by_team = {}
+        
+        # Find all lineup cards
+        lineup_cards = soup.find_all('div', class_='lineup__box')
+        
+        for card in lineup_cards:
+            # Get team abbreviation
+            team_elem = card.find('div', class_='lineup__abbr')
+            if not team_elem:
+                continue
+            team = team_elem.text.strip()
+            
+            if team not in injuries_by_team:
+                injuries_by_team[team] = []
+            
+            # Find all players in the card
+            players = card.find_all('li', class_='lineup__player')
+            
+            for player in players:
+                player_link = player.find('a')
+                if not player_link:
+                    continue
+                    
+                player_name = player_link.text.strip()
+                
+                # Check for injury status
+                status_elem = player.find('span', class_='lineup__inj')
+                if status_elem:
+                    status = status_elem.text.strip().lower()
+                    if status in ['ques', 'prob', 'doubt', 'gtd']:
+                        injuries_by_team[team].append({
+                            'player': player_name,
+                            'status': status,
+                            'full_status': 'Questionable' if status == 'ques' else 
+                                          'Probable' if status == 'prob' else
+                                          'Doubtful' if status == 'doubt' else
+                                          'Game-Time Decision' if status == 'gtd' else status
+                        })
+        
+        # Filter to only teams with injuries
+        injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
+        
+        print(f"Found injuries for {len(injuries_by_team)} teams")
+        
+        return jsonify({
+            'success': True,
+            'injuries': injuries_by_team
+        })
+        
+    except Exception as e:
+        print(f"Error scraping injuries: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
