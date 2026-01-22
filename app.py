@@ -1178,7 +1178,7 @@ def download_projections():
 
 @app.route('/calculate_scenario', methods=['POST'])
 def calculate_scenario():
-    """Calculate projection changes when a player is marked OUT using intelligent usage redistribution"""
+    """Calculate projection changes using position-based patterns learned from ETR data"""
     try:
         data = request.get_json()
         out_player = data.get('out_player')
@@ -1196,43 +1196,37 @@ def calculate_scenario():
         out_player_data = next((p for p in team_players if p.get('player') == out_player), None)
         teammates = [p for p in team_players if p.get('player') != out_player]
         
-        print(f"   Team players: {len(team_players)}")
-        print(f"   Teammates (active): {len(teammates)}")
+        if not out_player_data or not teammates:
+            return jsonify({'success': False, 'error': f'Invalid data for {out_player}'})
         
-        if not out_player_data:
-            print(f"   ⚠️ OUT player not found in projections")
-            return jsonify({'success': False, 'error': f'{out_player} not found in {team} projections'})
-        
-        if not teammates:
-            return jsonify({'success': False, 'error': f'No teammates found for {team}'})
-        
-        # Calculate missing usage from OUT player
+        # OUT player's stats
         out_minutes = out_player_data.get('minutes', 0)
         out_pts = out_player_data.get('points', 0)
-        out_reb = out_player_data.get('rebounds', 0) 
+        out_reb = out_player_data.get('rebounds', 0)
         out_ast = out_player_data.get('assists', 0)
+        out_position = out_player_data.get('position', 'UNK')
         
-        print(f"   Missing usage: {out_pts:.1f} PTS, {out_reb:.1f} REB, {out_ast:.1f} AST ({out_minutes:.1f} MIN)")
+        print(f"   Missing: {out_pts:.1f} PTS, {out_reb:.1f} REB, {out_ast:.1f} AST ({out_minutes:.1f} MIN)")
+        print(f"   Position: {out_position}")
         
-        # Check if we have historical redistribution data
+        # Check for direct historical data first
         redist = projection_system.redistribution_rates
-        has_historical_data = (team in redist and 
-                              any(out_player in redist[team].get(p['player'], {}) 
-                                  for p in teammates))
+        has_direct_data = (team in redist and 
+                          any(out_player in redist[team].get(p['player'], {}) 
+                              for p in teammates))
         
         adjusted_projections = []
         
-        if has_historical_data:
-            print(f"   ✅ Using historical ETR redistribution data")
+        if has_direct_data:
+            # Use direct historical data
+            print(f"   ✅ Using direct ETR data for {out_player}")
             
-            # Use historical rates from ETR
             for teammate in teammates:
                 player_name = teammate['player']
                 minutes = teammate.get('minutes', 0)
                 if minutes == 0:
                     continue
-                    
-                # Try to get historical data
+                
                 new_pts = teammate.get('points', 0)
                 new_ast = teammate.get('assists', 0)
                 new_reb = teammate.get('rebounds', 0)
@@ -1242,10 +1236,8 @@ def calculate_scenario():
                     new_pts = boost_data.get('without_pts_rate', new_pts / minutes) * minutes
                     new_ast = boost_data.get('without_ast_rate', new_ast / minutes) * minutes
                     new_reb = boost_data.get('without_reb_rate', new_reb / minutes) * minutes
-                    print(f"      📊 {player_name}: Historical data found")
                 
                 new_pra = new_pts + new_ast + new_reb
-                
                 adjusted_projections.append({
                     'player': player_name,
                     'team': team,
@@ -1265,13 +1257,17 @@ def calculate_scenario():
                     'pra_change': round(new_pra - teammate.get('pra', 0), 2)
                 })
         else:
-            print(f"   ⚠️ No historical data - using intelligent redistribution")
+            # Learn from similar situations across ALL ETR data
+            print(f"   🧠 Learning from position-based patterns across all teams")
             
-            # Calculate total current usage for active teammates
-            total_current_usage = sum(p.get('points', 0) + p.get('rebounds', 0) + p.get('assists', 0) 
-                                    for p in teammates)
+            # Analyze all ETR data to find patterns when similar players were out
+            position_boost_patterns = analyze_position_patterns(redist, out_position, out_pts, out_reb, out_ast)
             
-            # Redistribute based on current usage share
+            print(f"   📊 Position patterns:")
+            for pos, boosts in position_boost_patterns.items():
+                print(f"      {pos}: PTS +{boosts['pts_boost_pct']:.1f}%, REB +{boosts['reb_boost_pct']:.1f}%, AST +{boosts['ast_boost_pct']:.1f}%")
+            
+            # Apply learned patterns
             for teammate in teammates:
                 player_name = teammate['player']
                 minutes = teammate.get('minutes', 0)
@@ -1281,27 +1277,33 @@ def calculate_scenario():
                 current_pts = teammate.get('points', 0)
                 current_reb = teammate.get('rebounds', 0)
                 current_ast = teammate.get('assists', 0)
-                current_usage = current_pts + current_reb + current_ast
+                teammate_pos = teammate.get('position', 'UNK')
                 
-                # Calculate this player's share of team usage
-                usage_share = current_usage / total_current_usage if total_current_usage > 0 else 0
-                
-                # Redistribute missing stats proportionally
-                pts_boost = out_pts * usage_share * (current_pts / current_usage if current_usage > 0 else 0.4)
-                reb_boost = out_reb * usage_share * (current_reb / current_usage if current_usage > 0 else 0.3)
-                ast_boost = out_ast * usage_share * (current_ast / current_usage if current_usage > 0 else 0.3)
+                # Get boost pattern for this position
+                if teammate_pos in position_boost_patterns:
+                    pattern = position_boost_patterns[teammate_pos]
+                    pts_boost = current_pts * pattern['pts_boost_pct'] / 100
+                    reb_boost = current_reb * pattern['reb_boost_pct'] / 100
+                    ast_boost = current_ast * pattern['ast_boost_pct'] / 100
+                else:
+                    # Fallback: distribute proportionally
+                    total_usage = sum(p.get('points', 0) + p.get('rebounds', 0) + p.get('assists', 0) for p in teammates)
+                    usage_share = (current_pts + current_reb + current_ast) / total_usage if total_usage > 0 else 0
+                    pts_boost = out_pts * usage_share * (current_pts / (current_pts + current_reb + current_ast) if (current_pts + current_reb + current_ast) > 0 else 0.4)
+                    reb_boost = out_reb * usage_share * (current_reb / (current_pts + current_reb + current_ast) if (current_pts + current_reb + current_ast) > 0 else 0.3)
+                    ast_boost = out_ast * usage_share * (current_ast / (current_pts + current_reb + current_ast) if (current_pts + current_reb + current_ast) > 0 else 0.3)
                 
                 new_pts = current_pts + pts_boost
                 new_reb = current_reb + reb_boost
                 new_ast = current_ast + ast_boost
                 new_pra = new_pts + new_reb + new_ast
                 
-                print(f"      🧮 {player_name}: Usage {usage_share*100:.1f}% → +{pts_boost:.1f} PTS, +{reb_boost:.1f} REB, +{ast_boost:.1f} AST")
+                print(f"      🔧 {player_name} ({teammate_pos}): +{pts_boost:.1f} PTS, +{reb_boost:.1f} REB, +{ast_boost:.1f} AST")
                 
                 adjusted_projections.append({
                     'player': player_name,
                     'team': team,
-                    'position': teammate.get('position', ''),
+                    'position': teammate_pos,
                     'minutes': minutes,
                     'original_pts': round(current_pts, 2),
                     'new_pts': round(new_pts, 2),
@@ -1334,6 +1336,84 @@ def calculate_scenario():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
+
+
+def analyze_position_patterns(redist_data, out_position, out_pts, out_reb, out_ast):
+    """
+    Analyze ALL ETR redistribution data to learn position-based boost patterns
+    
+    When a high-usage player at position X goes out, how much do teammates at each position benefit?
+    """
+    
+    # Track boosts by position
+    position_boosts = {
+        'PG': {'pts_total': 0, 'reb_total': 0, 'ast_total': 0, 'count': 0},
+        'SG': {'pts_total': 0, 'reb_total': 0, 'ast_total': 0, 'count': 0},
+        'SF': {'pts_total': 0, 'reb_total': 0, 'ast_total': 0, 'count': 0},
+        'PF': {'pts_total': 0, 'reb_total': 0, 'ast_total': 0, 'count': 0},
+        'C': {'pts_total': 0, 'reb_total': 0, 'ast_total': 0, 'count': 0}
+    }
+    
+    # Analyze patterns across all teams
+    for team_name, team_data in redist_data.items():
+        for active_player, missing_players_data in team_data.items():
+            for missing_player, rates in missing_players_data.items():
+                # Calculate the boost this player got
+                with_pts = rates.get('with_pts_rate', 0)
+                without_pts = rates.get('without_pts_rate', 0)
+                with_reb = rates.get('with_reb_rate', 0)
+                without_reb = rates.get('without_reb_rate', 0)
+                with_ast = rates.get('with_ast_rate', 0)
+                without_ast = rates.get('without_ast_rate', 0)
+                
+                if with_pts > 0:
+                    pts_boost_pct = ((without_pts - with_pts) / with_pts) * 100
+                    reb_boost_pct = ((without_reb - with_reb) / with_reb) * 100 if with_reb > 0 else 0
+                    ast_boost_pct = ((without_ast - with_ast) / with_ast) * 100 if with_ast > 0 else 0
+                    
+                    # We don't have position data in the JSON, so we'll estimate based on stats
+                    # High assists = likely guard, high rebounds = likely big
+                    if without_ast > 0.15:  # High assist rate
+                        pos = 'PG' if without_ast > 0.20 else 'SG'
+                    elif without_reb > 0.25:  # High rebound rate
+                        pos = 'C' if without_reb > 0.30 else 'PF'
+                    else:
+                        pos = 'SF'
+                    
+                    position_boosts[pos]['pts_total'] += pts_boost_pct
+                    position_boosts[pos]['reb_total'] += reb_boost_pct
+                    position_boosts[pos]['ast_total'] += ast_boost_pct
+                    position_boosts[pos]['count'] += 1
+    
+    # Calculate average boosts by position
+    result = {}
+    for pos, data in position_boosts.items():
+        if data['count'] > 0:
+            result[pos] = {
+                'pts_boost_pct': max(0, data['pts_total'] / data['count']),
+                'reb_boost_pct': max(0, data['reb_total'] / data['count']),
+                'ast_boost_pct': max(0, data['ast_total'] / data['count'])
+            }
+        else:
+            # Default moderate boosts
+            result[pos] = {
+                'pts_boost_pct': 8.0,
+                'reb_boost_pct': 6.0,
+                'ast_boost_pct': 10.0
+            }
+    
+    # Scale boosts based on the OUT player's usage
+    # Higher usage player = bigger impact when missing
+    avg_usage = 30  # Average significant player
+    out_total_usage = out_pts + out_reb + out_ast
+    usage_multiplier = min(2.0, out_total_usage / avg_usage)  # Cap at 2x
+    
+    for pos in result:
+        result[pos]['pts_boost_pct'] *= usage_multiplier
+        result[pos]['reb_boost_pct'] *= usage_multiplier
+        result[pos]['ast_boost_pct'] *= usage_multiplier
+    
+    return result
 
 
 @app.route('/get_injuries', methods=['GET'])
@@ -1369,6 +1449,16 @@ def get_injuries():
             lineup_boxes = game.find_all('div', class_='lineup__box')
             print(f"   Found {len(lineup_boxes)} teams in this game")
             
+            # Get both team names first to create matchup
+            team_names = []
+            for box in lineup_boxes:
+                team_elem = box.find('div', class_='lineup__abbr')
+                if team_elem:
+                    team_names.append(team_elem.text.strip())
+            
+            matchup = " vs ".join(team_names) if len(team_names) == 2 else None
+            print(f"   Matchup: {matchup}")
+            
             # Process each team in this game
             for box_idx, box in enumerate(lineup_boxes):
                 # Get team abbreviation
@@ -1378,11 +1468,16 @@ def get_injuries():
                     continue
                     
                 team = team_elem.text.strip()
-                print(f"   🏀 Team {box_idx + 1}: {team}")
+                opponent = team_names[1 - box_idx] if len(team_names) == 2 else None
+                print(f"   🏀 Team {box_idx + 1}: {team} (vs {opponent})")
                 
-                # Initialize team injury list if not exists - USE A NEW LIST EACH TIME
+                # Initialize team injury list if not exists
                 if team not in injuries_by_team:
-                    injuries_by_team[team] = []
+                    injuries_by_team[team] = {
+                        'opponent': opponent,
+                        'matchup': matchup,
+                        'players': []
+                    }
                 
                 # Track players we've seen for THIS specific team in THIS box
                 seen_players_this_team = set()
@@ -1489,18 +1584,19 @@ def get_injuries():
                 
                 # Add all players found for this team to the main dict
                 if players_found_this_team:
-                    injuries_by_team[team].extend(players_found_this_team)
+                    injuries_by_team[team]['players'].extend(players_found_this_team)
                     print(f"      ✅ Added {len(players_found_this_team)} players to {team}")
                     print(f"      Players: {[p['player'] for p in players_found_this_team]}")
                 else:
                     print(f"      ℹ️  No injured players found for {team}")
         
         # Filter to only teams with injuries
-        injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
+        injuries_by_team = {k: v for k, v in injuries_by_team.items() if v['players']}
         
         print(f"\n✅ Found injuries for {len(injuries_by_team)} teams")
-        for team, players in injuries_by_team.items():
-            print(f"   {team}: {[p['player'] + ' (' + p['status'] + ')' for p in players]}")
+        for team, data in injuries_by_team.items():
+            players_str = [p['player'] + ' (' + p['status'] + ')' for p in data['players']]
+            print(f"   {data['matchup']}: {team} - {players_str}")
         
         return jsonify({
             'success': True,
