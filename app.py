@@ -1257,7 +1257,7 @@ def calculate_scenario():
 
 @app.route('/get_injuries', methods=['GET'])
 def get_injuries():
-    """Scrape Rotowire for questionable/probable players"""
+    """Scrape Rotowire for questionable/probable players from MAY NOT PLAY section only"""
     try:
         url = "https://www.rotowire.com/basketball/nba-lineups.php"
         headers = {
@@ -1271,12 +1271,12 @@ def get_injuries():
         
         injuries_by_team = {}
         
-        # Find all lineup cards
-        lineup_cards = soup.find_all('div', class_='lineup__box')
+        # Find all lineup boxes (each game has 2 teams)
+        lineup_boxes = soup.find_all('div', class_='lineup__box')
         
-        for card in lineup_cards:
+        for box in lineup_boxes:
             # Get team abbreviation
-            team_elem = card.find('div', class_='lineup__abbr')
+            team_elem = box.find('div', class_='lineup__abbr')
             if not team_elem:
                 continue
             team = team_elem.text.strip()
@@ -1284,34 +1284,50 @@ def get_injuries():
             if team not in injuries_by_team:
                 injuries_by_team[team] = []
             
-            # Find all players in the card
-            players = card.find_all('li', class_='lineup__player')
+            # ONLY look in the "MAY NOT PLAY" section (lineup__injured)
+            injured_section = box.find('ul', class_='lineup__injured')
+            if not injured_section:
+                continue
+            
+            # Find players in the injured section only
+            players = injured_section.find_all('li', class_='lineup__player')
+            
+            seen_players = set()  # Avoid duplicates
             
             for player in players:
                 player_link = player.find('a')
                 if not player_link:
                     continue
-                    
-                player_name = player_link.text.strip()
+                
+                short_name = player_link.text.strip()  # e.g., "J. Embiid"
+                
+                # Skip if we've already seen this player
+                if short_name in seen_players:
+                    continue
+                seen_players.add(short_name)
                 
                 # Check for injury status
                 status_elem = player.find('span', class_='lineup__inj')
                 if status_elem:
                     status = status_elem.text.strip().lower()
-                    if status in ['ques', 'prob', 'doubt', 'gtd']:
+                    # Include ques, prob, doubt, gtd, out
+                    if status in ['ques', 'prob', 'doubt', 'gtd', 'out']:
                         injuries_by_team[team].append({
-                            'player': player_name,
+                            'player': short_name,
                             'status': status,
                             'full_status': 'Questionable' if status == 'ques' else 
                                           'Probable' if status == 'prob' else
                                           'Doubtful' if status == 'doubt' else
-                                          'Game-Time Decision' if status == 'gtd' else status
+                                          'Game-Time Decision' if status == 'gtd' else
+                                          'Out' if status == 'out' else status
                         })
         
         # Filter to only teams with injuries
         injuries_by_team = {k: v for k, v in injuries_by_team.items() if v}
         
         print(f"Found injuries for {len(injuries_by_team)} teams")
+        for team, players in injuries_by_team.items():
+            print(f"  {team}: {[p['player'] for p in players]}")
         
         return jsonify({
             'success': True,
