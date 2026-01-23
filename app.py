@@ -1483,9 +1483,8 @@ def get_injuries():
                 seen_players_this_team = set()
                 players_found_this_team = []
                 
-                # Try multiple methods to find injured players
-                
-                # Method 1: Look for lineup__injured section (dedicated injury list)
+                # ONLY use the dedicated injury section (lineup__injured)
+                # This is the most reliable method as it's properly scoped per team
                 injured_section = box.find('ul', class_='lineup__injured')
                 if injured_section:
                     print(f"      ✅ Found lineup__injured section")
@@ -1514,35 +1513,6 @@ def get_injuries():
                             print(f"         🚑 {short_name} - {status}")
                 else:
                     print(f"      ⚠️  No lineup__injured section found")
-                
-                # Method 2: Look through ALL player elements for injury tags (ONLY in this box)
-                # CRITICAL: Use box.find_all() not game.find_all() to stay within this team's section
-                all_player_elements = box.find_all('li', class_='lineup__player')
-                if all_player_elements:
-                    print(f"      Scanning {len(all_player_elements)} players in {team}'s box for injury tags...")
-                    
-                    for player in all_player_elements:
-                        player_link = player.find('a')
-                        if not player_link:
-                            continue
-                        
-                        short_name = player_link.text.strip()
-                        if short_name in seen_players_this_team:
-                            continue
-                        
-                        # Look for any injury status indicator
-                        status_elem = player.find('span', class_='lineup__inj')
-                        if status_elem:
-                            status = status_elem.text.strip().lower()
-                            # Only add questionable/probable/out players
-                            if status in ['ques', 'prob', 'doubt', 'gtd', 'out', 'questionable', 'probable']:
-                                seen_players_this_team.add(short_name)
-                                players_found_this_team.append({
-                                    'player': short_name,
-                                    'status': status,
-                                    'full_status': get_full_status(status)
-                                })
-                                print(f"         🚑 {short_name} - {status} (in {team})")
                 
                 # Add all players found for this team to the main dict
                 if players_found_this_team:
