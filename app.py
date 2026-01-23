@@ -1544,44 +1544,6 @@ def get_injuries():
                                 })
                                 print(f"         🚑 {short_name} - {status} (in {team})")
                 
-                # Method 3: Check for "MAY NOT PLAY" section header (ONLY in this box)
-                may_not_play_header = box.find(string=re.compile(r'MAY NOT PLAY', re.IGNORECASE))
-                if may_not_play_header:
-                    print(f"      ✅ Found 'MAY NOT PLAY' section in {team}")
-                    # Find the parent container and look for players
-                    parent = may_not_play_header.find_parent()
-                    if parent:
-                        nearby_players = parent.find_next_siblings('li', class_='lineup__player', limit=10)
-                        if not nearby_players:
-                            # Try looking in children
-                            parent_ul = may_not_play_header.find_parent('ul')
-                            if parent_ul:
-                                nearby_players = parent_ul.find_all('li', class_='lineup__player')
-                        
-                        for player in nearby_players:
-                            player_link = player.find('a')
-                            if not player_link:
-                                continue
-                            
-                            short_name = player_link.text.strip()
-                            if short_name in seen_players_this_team:
-                                continue
-                            
-                            # These players are questionable by default if in MAY NOT PLAY section
-                            status_elem = player.find('span', class_='lineup__inj')
-                            if status_elem:
-                                status = status_elem.text.strip().lower()
-                            else:
-                                status = 'ques'  # Default to questionable
-                            
-                            seen_players_this_team.add(short_name)
-                            players_found_this_team.append({
-                                'player': short_name,
-                                'status': status,
-                                'full_status': get_full_status(status)
-                            })
-                            print(f"         🚑 {short_name} - {status} (from MAY NOT PLAY in {team})")
-                
                 # Add all players found for this team to the main dict
                 if players_found_this_team:
                     injuries_by_team[team]['players'].extend(players_found_this_team)
