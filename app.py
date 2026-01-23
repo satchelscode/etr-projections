@@ -1417,8 +1417,9 @@ def analyze_position_patterns(redist_data, out_position, out_pts, out_reb, out_a
 
 
 @app.route('/get_injuries', methods=['GET'])
+@app.route('/get_injuries', methods=['GET'])
 def get_injuries():
-    """Scrape Rotowire for questionable/probable players, properly grouped by game"""
+    """Scrape all injured players from Rotowire, then match to actual teams from our projections"""
     try:
         url = "https://www.rotowire.com/basketball/nba-lineups.php"
         headers = {
@@ -1430,105 +1431,108 @@ def get_injuries():
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Store injuries grouped by team
+        # Step 1: Scrape ALL injured players (don't worry about teams yet)
+        all_injured_players = []
+        
+        # Find all injury status tags on the page
+        injury_tags = soup.find_all('span', class_='lineup__inj')
+        print(f"🔍 Found {len(injury_tags)} total injury tags on page")
+        
+        for tag in injury_tags:
+            status = tag.text.strip().lower()
+            # Only care about ques, prob, doubt, gtd, out
+            if status not in ['ques', 'prob', 'doubt', 'gtd', 'out', 'questionable', 'probable']:
+                continue
+            
+            # Find the player link near this status tag
+            parent = tag.find_parent('li')
+            if parent:
+                player_link = parent.find('a')
+                if player_link:
+                    short_name = player_link.text.strip()
+                    all_injured_players.append({
+                        'short_name': short_name,
+                        'status': status
+                    })
+        
+        print(f"📋 Found {len(all_injured_players)} injured players total")
+        for p in all_injured_players[:10]:  # Show first 10
+            print(f"   {p['short_name']} - {p['status']}")
+        
+        # Step 2: Load the player-to-team mapping from our projection system
+        player_to_team_map = {}
+        
+        try:
+            # Get roster from redistribution_rates (has all teams/players)
+            for team, players in projection_system.redistribution_rates.items():
+                for player_name in players.keys():
+                    player_to_team_map[player_name] = team
+            
+            print(f"📊 Loaded {len(player_to_team_map)} players from projection system")
+        except Exception as e:
+            print(f"⚠️ Could not load player-to-team map: {e}")
+            return jsonify({
+                'success': False,
+                'error': 'Please generate projections first to enable injury matching'
+            })
+        
+        # Step 3: Match injured players to their actual teams
         injuries_by_team = {}
+        unmatched_players = []
         
-        # Find all game containers (each contains 2 teams)
-        game_containers = soup.find_all('div', class_='lineup is-nba')
-        print(f"🔍 Found {len(game_containers)} games")
-        
-        if not game_containers:
-            # Fallback: try without 'is-nba' class
-            game_containers = soup.find_all('div', class_='lineup')
-            print(f"🔍 Fallback: Found {len(game_containers)} lineup containers")
-        
-        for game_idx, game in enumerate(game_containers):
-            print(f"\n📋 Processing game {game_idx + 1}...")
+        for injured in all_injured_players:
+            short_name = injured['short_name']
+            status = injured['status']
             
-            # Each game has 2 lineup boxes (one per team)
-            lineup_boxes = game.find_all('div', class_='lineup__box')
-            print(f"   Found {len(lineup_boxes)} teams in this game")
+            # Try to match short name (J. Randle) to full name (Julius Randle)
+            matched_full_name = None
+            matched_team = None
             
-            # Get both team names first to create matchup
-            team_names = []
-            for box in lineup_boxes:
-                team_elem = box.find('div', class_='lineup__abbr')
-                if team_elem:
-                    team_names.append(team_elem.text.strip())
-            
-            matchup = " vs ".join(team_names) if len(team_names) == 2 else None
-            print(f"   Matchup: {matchup}")
-            
-            # Process each team in this game
-            for box_idx, box in enumerate(lineup_boxes):
-                # Get team abbreviation
-                team_elem = box.find('div', class_='lineup__abbr')
-                if not team_elem:
-                    print(f"   ⚠️  Team {box_idx + 1}: No team abbreviation found")
-                    continue
-                    
-                team = team_elem.text.strip()
-                opponent = team_names[1 - box_idx] if len(team_names) == 2 else None
-                print(f"   🏀 Team {box_idx + 1}: {team} (vs {opponent})")
+            # Parse short name: "J. Randle" -> "J" and "Randle"
+            parts = short_name.split('. ')
+            if len(parts) == 2:
+                first_initial = parts[0].upper()
+                last_name = parts[1]
                 
-                # Initialize team injury list if not exists
-                if team not in injuries_by_team:
-                    injuries_by_team[team] = {
-                        'opponent': opponent,
-                        'matchup': matchup,
+                # Search for matching full name in our player map
+                for full_name, team in player_to_team_map.items():
+                    name_parts = full_name.split(' ')
+                    if len(name_parts) >= 2:
+                        fn_first = name_parts[0]
+                        fn_last = name_parts[-1]
+                        
+                        if (fn_first.upper().startswith(first_initial) and 
+                            fn_last.lower() == last_name.lower()):
+                            matched_full_name = full_name
+                            matched_team = team
+                            break
+            
+            if matched_team:
+                # Add to that team's injury list
+                if matched_team not in injuries_by_team:
+                    injuries_by_team[matched_team] = {
+                        'opponent': None,
+                        'matchup': matched_team,
                         'players': []
                     }
                 
-                # Track players we've seen for THIS specific team in THIS box
-                seen_players_this_team = set()
-                players_found_this_team = []
+                injuries_by_team[matched_team]['players'].append({
+                    'player': short_name,
+                    'full_name': matched_full_name,
+                    'status': status,
+                    'full_status': get_full_status(status)
+                })
                 
-                # ONLY use the dedicated injury section (lineup__injured)
-                # This is the most reliable method as it's properly scoped per team
-                injured_section = box.find('ul', class_='lineup__injured')
-                if injured_section:
-                    print(f"      ✅ Found lineup__injured section")
-                    players = injured_section.find_all('li')
-                    print(f"      Found {len(players)} items in injured section")
-                    
-                    for player in players:
-                        player_link = player.find('a')
-                        if not player_link:
-                            continue
-                        
-                        short_name = player_link.text.strip()
-                        if short_name in seen_players_this_team:
-                            continue
-                        
-                        # Look for injury status tag
-                        status_elem = player.find('span', class_='lineup__inj')
-                        if status_elem:
-                            status = status_elem.text.strip().lower()
-                            seen_players_this_team.add(short_name)
-                            players_found_this_team.append({
-                                'player': short_name,
-                                'status': status,
-                                'full_status': get_full_status(status)
-                            })
-                            print(f"         🚑 {short_name} - {status}")
-                else:
-                    print(f"      ⚠️  No lineup__injured section found")
-                
-                # Add all players found for this team to the main dict
-                if players_found_this_team:
-                    injuries_by_team[team]['players'].extend(players_found_this_team)
-                    print(f"      ✅ Added {len(players_found_this_team)} players to {team}")
-                    print(f"      Players: {[p['player'] for p in players_found_this_team]}")
-                else:
-                    print(f"      ℹ️  No injured players found for {team}")
+                print(f"   ✅ {short_name} → {matched_full_name} ({matched_team})")
+            else:
+                unmatched_players.append(short_name)
+                print(f"   ⚠️ Could not match: {short_name}")
         
-        # Filter to only teams with injuries
-        injuries_by_team = {k: v for k, v in injuries_by_team.items() if v['players']}
+        print(f"\n✅ Matched {sum(len(v['players']) for v in injuries_by_team.values())} players to teams")
+        print(f"⚠️ {len(unmatched_players)} players unmatched")
         
-        print(f"\n✅ Found injuries for {len(injuries_by_team)} teams")
-        for team, data in injuries_by_team.items():
-            players_str = [p['player'] + ' (' + p['status'] + ')' for p in data['players']]
-            print(f"   {data['matchup']}: {team} - {players_str}")
+        if unmatched_players:
+            print(f"Unmatched: {unmatched_players[:5]}")
         
         return jsonify({
             'success': True,
@@ -1536,10 +1540,11 @@ def get_injuries():
         })
         
     except Exception as e:
-        print(f"❌ Error scraping injuries: {e}")
+        print(f"❌ Error in get_injuries: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
+
 
 def get_full_status(status):
     """Convert short status to full status name"""
