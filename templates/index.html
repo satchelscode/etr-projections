@@ -890,10 +890,22 @@
         
         // Load injuries from Rotowire
         document.getElementById('loadInjuriesBtn').addEventListener('click', async function() {
+            // Check if projections are loaded
+            if (allProjections.length === 0) {
+                alert('Please generate projections first before loading injuries');
+                return;
+            }
+            
             showLoading('Loading injury report from Rotowire...');
             
             try {
-                const response = await fetch('/get_injuries');
+                const response = await fetch('/get_injuries', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projections: allProjections
+                    })
+                });
                 const data = await response.json();
                 
                 if (data.success) {
