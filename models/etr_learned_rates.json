@@ -12,52 +12,52 @@
     "avg_minutes": 13.6
   },
   "Vit Krejci": {
-    "pts_per_min": 0.3755,
-    "ast_per_min": 0.0816,
-    "reb_per_min": 0.1111,
-    "3pm_per_min": 0.0936,
-    "stl_per_min": 0.0326,
-    "blk_per_min": 0.0155,
+    "pts_per_min": 0.3762,
+    "ast_per_min": 0.0818,
+    "reb_per_min": 0.1116,
+    "3pm_per_min": 0.0929,
+    "stl_per_min": 0.0324,
+    "blk_per_min": 0.0153,
     "tov_per_min": 0.0372,
-    "sample_size": 11,
+    "sample_size": 12,
     "team": "ATL",
-    "avg_minutes": 20.0
+    "avg_minutes": 18.9
   },
   "Dyson Daniels": {
     "pts_per_min": 0.3616,
-    "ast_per_min": 0.1816,
-    "reb_per_min": 0.1859,
-    "3pm_per_min": 0.0139,
-    "stl_per_min": 0.0752,
-    "blk_per_min": 0.0154,
-    "tov_per_min": 0.0723,
-    "sample_size": 10,
+    "ast_per_min": 0.1831,
+    "reb_per_min": 0.1868,
+    "3pm_per_min": 0.013,
+    "stl_per_min": 0.0732,
+    "blk_per_min": 0.016,
+    "tov_per_min": 0.0705,
+    "sample_size": 11,
     "team": "ATL",
-    "avg_minutes": 32.9
+    "avg_minutes": 33.0
   },
   "Nickeil Alexander-Walker": {
-    "pts_per_min": 0.5874,
-    "ast_per_min": 0.1011,
-    "reb_per_min": 0.1172,
-    "3pm_per_min": 0.0889,
-    "stl_per_min": 0.0329,
-    "blk_per_min": 0.0171,
-    "tov_per_min": 0.0691,
-    "sample_size": 11,
+    "pts_per_min": 0.5854,
+    "ast_per_min": 0.1018,
+    "reb_per_min": 0.1182,
+    "3pm_per_min": 0.0891,
+    "stl_per_min": 0.0325,
+    "blk_per_min": 0.0167,
+    "tov_per_min": 0.0686,
+    "sample_size": 12,
     "team": "ATL",
     "avg_minutes": 32.7
   },
   "Luke Kennard": {
-    "pts_per_min": 0.3713,
-    "ast_per_min": 0.1084,
-    "reb_per_min": 0.1043,
-    "3pm_per_min": 0.0772,
-    "stl_per_min": 0.0298,
-    "blk_per_min": 0.0042,
-    "tov_per_min": 0.0447,
-    "sample_size": 11,
+    "pts_per_min": 0.3721,
+    "ast_per_min": 0.1086,
+    "reb_per_min": 0.1059,
+    "3pm_per_min": 0.0766,
+    "stl_per_min": 0.0295,
+    "blk_per_min": 0.0041,
+    "tov_per_min": 0.0439,
+    "sample_size": 12,
     "team": "ATL",
-    "avg_minutes": 17.7
+    "avg_minutes": 18.1
   },
   "Zaccharie Risacher": {
     "pts_per_min": 0.4677,
@@ -72,28 +72,28 @@
     "avg_minutes": 24.3
   },
   "Jalen Johnson": {
-    "pts_per_min": 0.6227,
-    "ast_per_min": 0.2163,
-    "reb_per_min": 0.2765,
-    "3pm_per_min": 0.0466,
-    "stl_per_min": 0.0394,
-    "blk_per_min": 0.0194,
-    "tov_per_min": 0.0946,
-    "sample_size": 10,
-    "team": "ATL",
-    "avg_minutes": 35.8
-  },
-  "Mouhamed Gueye": {
-    "pts_per_min": 0.3195,
-    "ast_per_min": 0.0564,
-    "reb_per_min": 0.23,
-    "3pm_per_min": 0.0383,
-    "stl_per_min": 0.0456,
-    "blk_per_min": 0.0424,
-    "tov_per_min": 0.0405,
+    "pts_per_min": 0.6284,
+    "ast_per_min": 0.2142,
+    "reb_per_min": 0.2789,
+    "3pm_per_min": 0.0457,
+    "stl_per_min": 0.0386,
+    "blk_per_min": 0.0193,
+    "tov_per_min": 0.0952,
     "sample_size": 11,
     "team": "ATL",
-    "avg_minutes": 19.0
+    "avg_minutes": 36.0
+  },
+  "Mouhamed Gueye": {
+    "pts_per_min": 0.3188,
+    "ast_per_min": 0.0568,
+    "reb_per_min": 0.2289,
+    "3pm_per_min": 0.0375,
+    "stl_per_min": 0.0457,
+    "blk_per_min": 0.0419,
+    "tov_per_min": 0.0407,
+    "sample_size": 12,
+    "team": "ATL",
+    "avg_minutes": 18.5
   },
   "Asa Newell": {
     "pts_per_min": 0.413,
@@ -108,16 +108,16 @@
     "avg_minutes": 9.8
   },
   "Onyeka Okongwu": {
-    "pts_per_min": 0.5049,
-    "ast_per_min": 0.1025,
-    "reb_per_min": 0.2522,
-    "3pm_per_min": 0.0652,
-    "stl_per_min": 0.0328,
-    "blk_per_min": 0.0308,
-    "tov_per_min": 0.0584,
-    "sample_size": 11,
+    "pts_per_min": 0.5071,
+    "ast_per_min": 0.103,
+    "reb_per_min": 0.2519,
+    "3pm_per_min": 0.0624,
+    "stl_per_min": 0.0325,
+    "blk_per_min": 0.0304,
+    "tov_per_min": 0.0587,
+    "sample_size": 12,
     "team": "ATL",
-    "avg_minutes": 33.4
+    "avg_minutes": 33.5
   },
   "Egor Demin": {
     "pts_per_min": 0.3959,
@@ -1104,52 +1104,52 @@
     "avg_minutes": 12.1
   },
   "Andrew Nembhard": {
-    "pts_per_min": 0.5079,
-    "ast_per_min": 0.212,
-    "reb_per_min": 0.0927,
-    "3pm_per_min": 0.0524,
-    "stl_per_min": 0.0312,
-    "blk_per_min": 0.0053,
-    "tov_per_min": 0.0707,
-    "sample_size": 12,
+    "pts_per_min": 0.5085,
+    "ast_per_min": 0.2133,
+    "reb_per_min": 0.094,
+    "3pm_per_min": 0.052,
+    "stl_per_min": 0.0315,
+    "blk_per_min": 0.0054,
+    "tov_per_min": 0.0708,
+    "sample_size": 13,
     "team": "IND",
     "avg_minutes": 32.4
   },
   "T.J. McConnell": {
-    "pts_per_min": 0.5401,
-    "ast_per_min": 0.2575,
-    "reb_per_min": 0.1407,
-    "3pm_per_min": 0.0224,
-    "stl_per_min": 0.0577,
-    "blk_per_min": 0.0092,
-    "tov_per_min": 0.0802,
-    "sample_size": 12,
+    "pts_per_min": 0.5358,
+    "ast_per_min": 0.2614,
+    "reb_per_min": 0.1422,
+    "3pm_per_min": 0.0219,
+    "stl_per_min": 0.0584,
+    "blk_per_min": 0.0093,
+    "tov_per_min": 0.0804,
+    "sample_size": 13,
     "team": "IND",
-    "avg_minutes": 18.0
+    "avg_minutes": 17.8
   },
   "Bennedict Mathurin": {
-    "pts_per_min": 0.5972,
-    "ast_per_min": 0.0696,
-    "reb_per_min": 0.1713,
-    "3pm_per_min": 0.0658,
-    "stl_per_min": 0.0247,
-    "blk_per_min": 0.0089,
-    "tov_per_min": 0.0763,
-    "sample_size": 6,
+    "pts_per_min": 0.5889,
+    "ast_per_min": 0.0715,
+    "reb_per_min": 0.1737,
+    "3pm_per_min": 0.0671,
+    "stl_per_min": 0.0256,
+    "blk_per_min": 0.0087,
+    "tov_per_min": 0.0772,
+    "sample_size": 7,
     "team": "IND",
-    "avg_minutes": 33.2
+    "avg_minutes": 31.0
   },
   "Ben Sheppard": {
-    "pts_per_min": 0.2991,
-    "ast_per_min": 0.0762,
-    "reb_per_min": 0.147,
-    "3pm_per_min": 0.052,
-    "stl_per_min": 0.0322,
+    "pts_per_min": 0.2988,
+    "ast_per_min": 0.0765,
+    "reb_per_min": 0.1475,
+    "3pm_per_min": 0.0522,
+    "stl_per_min": 0.0326,
     "blk_per_min": 0.0084,
-    "tov_per_min": 0.0303,
-    "sample_size": 11,
+    "tov_per_min": 0.0297,
+    "sample_size": 12,
     "team": "IND",
-    "avg_minutes": 20.6
+    "avg_minutes": 19.5
   },
   "Garrison Mathews": {
     "pts_per_min": 0.3553,
@@ -1164,28 +1164,28 @@
     "avg_minutes": 10.0
   },
   "Jarace Walker": {
-    "pts_per_min": 0.4084,
-    "ast_per_min": 0.0787,
-    "reb_per_min": 0.183,
-    "3pm_per_min": 0.0701,
+    "pts_per_min": 0.4088,
+    "ast_per_min": 0.0794,
+    "reb_per_min": 0.1837,
+    "3pm_per_min": 0.0695,
     "stl_per_min": 0.036,
-    "blk_per_min": 0.0181,
-    "tov_per_min": 0.0721,
-    "sample_size": 13,
+    "blk_per_min": 0.0182,
+    "tov_per_min": 0.0711,
+    "sample_size": 14,
     "team": "IND",
-    "avg_minutes": 22.3
+    "avg_minutes": 22.6
   },
   "Pascal Siakam": {
-    "pts_per_min": 0.6802,
-    "ast_per_min": 0.11,
-    "reb_per_min": 0.206,
-    "3pm_per_min": 0.0487,
-    "stl_per_min": 0.0295,
+    "pts_per_min": 0.682,
+    "ast_per_min": 0.1107,
+    "reb_per_min": 0.2076,
+    "3pm_per_min": 0.0485,
+    "stl_per_min": 0.0298,
     "blk_per_min": 0.013,
-    "tov_per_min": 0.066,
-    "sample_size": 12,
+    "tov_per_min": 0.0657,
+    "sample_size": 13,
     "team": "IND",
-    "avg_minutes": 33.6
+    "avg_minutes": 33.5
   },
   "Jeremiah Robinson-Earl": {
     "pts_per_min": 0.3236,
@@ -1200,28 +1200,28 @@
     "avg_minutes": 9.4
   },
   "Isaiah Jackson": {
-    "pts_per_min": 0.3971,
-    "ast_per_min": 0.0495,
-    "reb_per_min": 0.3151,
-    "3pm_per_min": 0.0008,
+    "pts_per_min": 0.3963,
+    "ast_per_min": 0.049,
+    "reb_per_min": 0.3179,
+    "3pm_per_min": 0.0007,
     "stl_per_min": 0.0391,
-    "blk_per_min": 0.0522,
-    "tov_per_min": 0.0639,
-    "sample_size": 9,
+    "blk_per_min": 0.0525,
+    "tov_per_min": 0.0634,
+    "sample_size": 10,
     "team": "IND",
-    "avg_minutes": 17.0
+    "avg_minutes": 15.7
   },
   "Jay Huff": {
-    "pts_per_min": 0.4379,
-    "ast_per_min": 0.0632,
-    "reb_per_min": 0.1943,
-    "3pm_per_min": 0.0805,
-    "stl_per_min": 0.0235,
-    "blk_per_min": 0.0915,
+    "pts_per_min": 0.4378,
+    "ast_per_min": 0.0635,
+    "reb_per_min": 0.1959,
+    "3pm_per_min": 0.0796,
+    "stl_per_min": 0.0236,
+    "blk_per_min": 0.092,
     "tov_per_min": 0.047,
-    "sample_size": 13,
+    "sample_size": 14,
     "team": "IND",
-    "avg_minutes": 23.2
+    "avg_minutes": 22.4
   },
   "Tony Bradley": {
     "pts_per_min": 0.3847,
@@ -2076,16 +2076,16 @@
     "avg_minutes": 31.5
   },
   "CJ McCollum": {
-    "pts_per_min": 0.6398,
-    "ast_per_min": 0.1321,
-    "reb_per_min": 0.1167,
-    "3pm_per_min": 0.0894,
-    "stl_per_min": 0.0277,
-    "blk_per_min": 0.0112,
-    "tov_per_min": 0.0581,
-    "sample_size": 10,
+    "pts_per_min": 0.6447,
+    "ast_per_min": 0.1333,
+    "reb_per_min": 0.1175,
+    "3pm_per_min": 0.0877,
+    "stl_per_min": 0.028,
+    "blk_per_min": 0.0114,
+    "tov_per_min": 0.0588,
+    "sample_size": 11,
     "team": "ATL",
-    "avg_minutes": 28.2
+    "avg_minutes": 28.0
   },
   "Malaki Branham": {
     "pts_per_min": 0.424,
@@ -2328,16 +2328,16 @@
     "avg_minutes": 18.3
   },
   "Johnny Furphy": {
-    "pts_per_min": 0.3062,
-    "ast_per_min": 0.0484,
+    "pts_per_min": 0.3068,
+    "ast_per_min": 0.0486,
     "reb_per_min": 0.2165,
-    "3pm_per_min": 0.0433,
-    "stl_per_min": 0.0357,
-    "blk_per_min": 0.0174,
+    "3pm_per_min": 0.0434,
+    "stl_per_min": 0.0364,
+    "blk_per_min": 0.0172,
     "tov_per_min": 0.0452,
-    "sample_size": 10,
+    "sample_size": 11,
     "team": "IND",
-    "avg_minutes": 20.6
+    "avg_minutes": 20.2
   },
   "Cam Christie": {
     "pts_per_min": 0.3847,
@@ -3456,16 +3456,16 @@
     "avg_minutes": 18.0
   },
   "Quenton Jackson": {
-    "pts_per_min": 0.4472,
-    "ast_per_min": 0.1282,
-    "reb_per_min": 0.1267,
+    "pts_per_min": 0.4467,
+    "ast_per_min": 0.1267,
+    "reb_per_min": 0.1272,
     "3pm_per_min": 0.046,
-    "stl_per_min": 0.0373,
-    "blk_per_min": 0.0104,
-    "tov_per_min": 0.0692,
-    "sample_size": 9,
+    "stl_per_min": 0.0379,
+    "blk_per_min": 0.0105,
+    "tov_per_min": 0.0691,
+    "sample_size": 10,
     "team": "IND",
-    "avg_minutes": 16.7
+    "avg_minutes": 15.4
   },
   "RayJ Dennis": {
     "pts_per_min": 0.425,
@@ -3960,28 +3960,28 @@
     "avg_minutes": 15.7
   },
   "Aaron Nesmith": {
-    "pts_per_min": 0.4846,
-    "ast_per_min": 0.0711,
-    "reb_per_min": 0.1664,
-    "3pm_per_min": 0.0873,
-    "stl_per_min": 0.0308,
-    "blk_per_min": 0.0195,
-    "tov_per_min": 0.042,
-    "sample_size": 7,
+    "pts_per_min": 0.4801,
+    "ast_per_min": 0.0713,
+    "reb_per_min": 0.1682,
+    "3pm_per_min": 0.086,
+    "stl_per_min": 0.0314,
+    "blk_per_min": 0.0194,
+    "tov_per_min": 0.0427,
+    "sample_size": 8,
     "team": "IND",
-    "avg_minutes": 29.8
+    "avg_minutes": 29.9
   },
   "Micah Potter": {
-    "pts_per_min": 0.3253,
+    "pts_per_min": 0.324,
     "ast_per_min": 0.0637,
-    "reb_per_min": 0.2188,
-    "3pm_per_min": 0.0613,
-    "stl_per_min": 0.0213,
-    "blk_per_min": 0.0195,
-    "tov_per_min": 0.0514,
-    "sample_size": 6,
+    "reb_per_min": 0.222,
+    "3pm_per_min": 0.0594,
+    "stl_per_min": 0.0212,
+    "blk_per_min": 0.0192,
+    "tov_per_min": 0.0496,
+    "sample_size": 7,
     "team": "IND",
-    "avg_minutes": 12.3
+    "avg_minutes": 12.0
   },
   "Mike Conley": {
     "pts_per_min": 0.3003,
@@ -4524,16 +4524,16 @@
     "avg_minutes": 13.8
   },
   "Corey Kispert": {
-    "pts_per_min": 0.4641,
-    "ast_per_min": 0.0773,
-    "reb_per_min": 0.1136,
-    "3pm_per_min": 0.0824,
-    "stl_per_min": 0.021,
-    "blk_per_min": 0.0076,
-    "tov_per_min": 0.0425,
-    "sample_size": 5,
+    "pts_per_min": 0.4693,
+    "ast_per_min": 0.0782,
+    "reb_per_min": 0.1143,
+    "3pm_per_min": 0.0828,
+    "stl_per_min": 0.0208,
+    "blk_per_min": 0.0075,
+    "tov_per_min": 0.0431,
+    "sample_size": 6,
     "team": "ATL",
-    "avg_minutes": 20.5
+    "avg_minutes": 19.8
   },
   "Payton Pritchard": {
     "pts_per_min": 0.5199,
@@ -4978,5 +4978,17 @@
     "sample_size": 1,
     "team": "TOR",
     "avg_minutes": 26.0
+  },
+  "Christian Koloko": {
+    "pts_per_min": 0.25,
+    "ast_per_min": 0.05,
+    "reb_per_min": 0.26,
+    "3pm_per_min": 0.001,
+    "stl_per_min": 0.029,
+    "blk_per_min": 0.053,
+    "tov_per_min": 0.038,
+    "sample_size": 1,
+    "team": "ATL",
+    "avg_minutes": 10.0
   }
 }
