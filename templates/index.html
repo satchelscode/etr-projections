@@ -619,7 +619,7 @@
                 <div class="filters-bar">
                     <div class="filter-group">
                         <label class="filter-label">Team</label>
-                        <select class="filter-select" id="teamFilter">
+                        <select class="filter-select" id="teamFilter" multiple style="height: auto; min-height: 38px;">
                             <option value="">All Teams</option>
                         </select>
                     </div>
@@ -801,12 +801,13 @@
         
         // Render table
         function renderTable() {
-            const teamFilter = document.getElementById('teamFilter').value;
+            const teamSelect = document.getElementById('teamFilter');
+            const selectedTeams = Array.from(teamSelect.selectedOptions).map(opt => opt.value).filter(v => v !== '');
             const posFilter = document.getElementById('posFilter').value;
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
             let filtered = allProjections.filter(p => {
-                if (teamFilter && p.team !== teamFilter) return false;
+                if (selectedTeams.length > 0 && !selectedTeams.includes(p.team)) return false;
                 if (posFilter && p.position !== posFilter) return false;
                 if (searchTerm && !p.player.toLowerCase().includes(searchTerm)) return false;
                 return true;
@@ -849,7 +850,8 @@
         document.getElementById('posFilter').addEventListener('change', renderTable);
         document.getElementById('searchInput').addEventListener('input', renderTable);
         document.getElementById('clearFilters').addEventListener('click', function() {
-            document.getElementById('teamFilter').value = '';
+            const teamSelect = document.getElementById('teamFilter');
+            Array.from(teamSelect.options).forEach(opt => opt.selected = false);
             document.getElementById('posFilter').value = '';
             document.getElementById('searchInput').value = '';
             renderTable();
