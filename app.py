@@ -1456,7 +1456,10 @@ def get_injuries():
                     })
         
         print(f"📋 Found {len(all_injured_players)} injured players total")
-        for p in all_injured_players[:10]:  # Show first 10
+        
+        # Debug: show all scraped players
+        print("\n🔍 All scraped players:")
+        for p in all_injured_players:
             print(f"   {p['short_name']} - {p['status']}")
         
         # Step 2: Load the player-to-team mapping from our projection system
@@ -1479,6 +1482,7 @@ def get_injuries():
         # Step 3: Match injured players to their actual teams
         injuries_by_team = {}
         unmatched_players = []
+        seen_player_team_pairs = set()  # Track (player, team) to avoid duplicates
         
         for injured in all_injured_players:
             short_name = injured['short_name']
@@ -1508,6 +1512,14 @@ def get_injuries():
                             break
             
             if matched_team:
+                # Check if we've already added this player to this team
+                pair_key = f"{matched_team}-{short_name}"
+                if pair_key in seen_player_team_pairs:
+                    print(f"   ⏭️  Skipping duplicate: {short_name} already in {matched_team}")
+                    continue
+                    
+                seen_player_team_pairs.add(pair_key)
+                
                 # Add to that team's injury list
                 if matched_team not in injuries_by_team:
                     injuries_by_team[matched_team] = {
