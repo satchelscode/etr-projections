@@ -1123,6 +1123,10 @@ def generate_daily():
         
         projections = projection_system.generate_daily_projections(dfs_data)
         
+        # Store projections so get_injuries can use them for player-to-team mapping
+        projection_system.last_projections = projections
+        print(f"✅ Stored {len(projections)} projections for injury matching")
+        
         return jsonify({
             'success': True,
             'projections': projections,
@@ -1462,16 +1466,31 @@ def get_injuries():
         for p in all_injured_players:
             print(f"   {p['short_name']} - {p['status']}")
         
-        # Step 2: Load the player-to-team mapping from our projection system
+        # Step 2: Load the player-to-team mapping
+        # Use BOTH redistribution_rates AND current projections
         player_to_team_map = {}
         
         try:
-            # Get roster from redistribution_rates (has all teams/players)
+            # First, get roster from redistribution_rates (historical data)
             for team, players in projection_system.redistribution_rates.items():
                 for player_name in players.keys():
                     player_to_team_map[player_name] = team
             
-            print(f"📊 Loaded {len(player_to_team_map)} players from projection system")
+            print(f"📊 Loaded {len(player_to_team_map)} players from redistribution_rates")
+            
+            # Second, add players from TODAY'S projections (this is the complete roster!)
+            # This is stored in projection_system after generate_daily is called
+            if hasattr(projection_system, 'last_projections') and projection_system.last_projections:
+                for proj in projection_system.last_projections:
+                    player_name = proj.get('player')
+                    team = proj.get('team')
+                    if player_name and team:
+                        player_to_team_map[player_name] = team
+                
+                print(f"📊 Added players from today's projections - now have {len(player_to_team_map)} total players")
+            else:
+                print(f"⚠️ No current projections loaded - only using historical data")
+            
         except Exception as e:
             print(f"⚠️ Could not load player-to-team map: {e}")
             return jsonify({
