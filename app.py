@@ -1484,17 +1484,17 @@ def get_injuries():
         # Step 3: Match injured players to their actual teams
         injuries_by_team = {}
         unmatched_players = []
-        seen_player_team_pairs = set()  # Track (player, team) to avoid duplicates
+        seen_player_team_pairs = set()
         
         for injured in all_injured_players:
             short_name = injured['short_name']
             status = injured['status']
             
-            # Try to match short name (J. Randle) to full name (Julius Randle)
+            # Try to match short name to full name
             matched_full_name = None
             matched_team = None
             
-            # Parse short name: "J. Randle" -> "J" and "Randle"
+            # Parse short name: "J. Embiid" -> "J" and "Embiid"
             parts = short_name.split('. ')
             if len(parts) == 2:
                 first_initial = parts[0].upper()
@@ -1507,11 +1507,33 @@ def get_injuries():
                         fn_first = name_parts[0]
                         fn_last = name_parts[-1]
                         
-                        if (fn_first.upper().startswith(first_initial) and 
+                        # Match: first name STARTS WITH the initial, last name matches exactly
+                        # This handles "Joel" matching "J", "Jayson" matching "J", etc.
+                        if (fn_first.upper()[0] == first_initial[0] and 
                             fn_last.lower() == last_name.lower()):
                             matched_full_name = full_name
                             matched_team = team
                             break
+            else:
+                # Handle names without abbreviation (like "Max Strus", "Obi Toppin")
+                # Try direct match by last name
+                for full_name, team in player_to_team_map.items():
+                    if full_name.lower().endswith(short_name.lower()):
+                        matched_full_name = full_name
+                        matched_team = team
+                        break
+                    
+                    # Try matching by just the last word
+                    short_last = short_name.split()[-1]
+                    full_last = full_name.split()[-1]
+                    if short_last.lower() == full_last.lower():
+                        # Check if any part of the full name matches the first part
+                        if len(short_name.split()) > 1:
+                            short_first = short_name.split()[0]
+                            if full_name.lower().startswith(short_first.lower()):
+                                matched_full_name = full_name
+                                matched_team = team
+                                break
             
             if matched_team:
                 # Check if we've already added this player to this team
