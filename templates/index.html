@@ -595,7 +595,7 @@
             <div class="upload-section">
                 <div class="upload-row">
                     <div class="file-input-wrapper">
-                        <label for="dfsFile">📄 Upload DFS Projections</label>
+                        <label for="dfsFile">📄 Upload Basketball Monster CSV</label>
                         <input type="file" id="dfsFile" accept=".csv">
                     </div>
                     <span class="file-name" id="dfsFileName">No file selected</span>
@@ -697,7 +697,7 @@
             <div class="results-section" id="emptyState">
                 <div class="empty-state">
                     <div class="empty-state-icon">📊</div>
-                    <p>Upload a DFS projections CSV to generate player projections</p>
+                    <p>Upload a Basketball Monster CSV to generate player projections</p>
                 </div>
             </div>
         </div>
@@ -784,7 +784,7 @@
         document.getElementById('generateBtn').addEventListener('click', async function() {
             const fileInput = document.getElementById('dfsFile');
             if (!fileInput.files[0]) {
-                alert('Please select a DFS projections file');
+                alert('Please select a Basketball Monster CSV file');
                 return;
             }
             
