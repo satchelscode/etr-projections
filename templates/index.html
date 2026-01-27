@@ -619,9 +619,39 @@
                 <div class="filters-bar">
                     <div class="filter-group">
                         <label class="filter-label">Team</label>
-                        <select class="filter-select" id="teamFilter" multiple style="height: auto; min-height: 38px;">
-                            <option value="">All Teams</option>
-                        </select>
+                        <div class="team-filter-container" style="position: relative;">
+                            <div class="team-filter-display" id="teamFilterDisplay" style="
+                                padding: 8px 12px;
+                                border: 1px solid #d1d5db;
+                                border-radius: 6px;
+                                background: white;
+                                cursor: pointer;
+                                min-height: 38px;
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 6px;
+                                align-items: center;
+                            ">
+                                <span style="color: #9ca3af;">All Teams</span>
+                            </div>
+                            <div class="team-filter-dropdown" id="teamFilterDropdown" style="
+                                display: none;
+                                position: absolute;
+                                top: 100%;
+                                left: 0;
+                                right: 0;
+                                margin-top: 4px;
+                                background: white;
+                                border: 1px solid #d1d5db;
+                                border-radius: 6px;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                max-height: 300px;
+                                overflow-y: auto;
+                                z-index: 100;
+                            ">
+                                <!-- Teams will be populated here -->
+                            </div>
+                        </div>
                     </div>
                     <div class="filter-group">
                         <label class="filter-label">Position</label>
@@ -789,20 +819,88 @@
             }
         });
         
-        // Populate team filter
+        // Selected teams tracking
+        let selectedTeams = [];
+        
+        // Populate team filter with checkboxes
         function populateTeamFilter() {
             const teams = [...new Set(allProjections.map(p => p.team))].sort();
-            const select = document.getElementById('teamFilter');
-            select.innerHTML = '<option value="">All Teams</option>';
-            teams.forEach(team => {
-                select.innerHTML += `<option value="${team}">${team}</option>`;
+            const dropdown = document.getElementById('teamFilterDropdown');
+            
+            dropdown.innerHTML = teams.map(team => `
+                <label style="
+                    display: block;
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                    user-select: none;
+                " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                    <input type="checkbox" value="${team}" class="team-checkbox" style="margin-right: 8px;">
+                    <span>${team}</span>
+                </label>
+            `).join('');
+            
+            // Add event listeners to checkboxes
+            dropdown.querySelectorAll('.team-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateTeamDisplay);
             });
         }
         
+        // Update team filter display
+        function updateTeamDisplay() {
+            const checkboxes = document.querySelectorAll('.team-checkbox');
+            selectedTeams = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+            
+            const display = document.getElementById('teamFilterDisplay');
+            
+            if (selectedTeams.length === 0) {
+                display.innerHTML = '<span style="color: #9ca3af;">All Teams</span>';
+            } else {
+                display.innerHTML = selectedTeams.map(team => `
+                    <span style="
+                        background: #667eea;
+                        color: white;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85rem;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                    ">
+                        ${team}
+                        <button onclick="removeTeam('${team}'); event.stopPropagation();" style="
+                            background: none;
+                            border: none;
+                            color: white;
+                            cursor: pointer;
+                            padding: 0;
+                            font-size: 1.1rem;
+                            line-height: 1;
+                            font-weight: bold;
+                        ">×</button>
+                    </span>
+                `).join('');
+            }
+            
+            renderTable();
+        }
+        
+        // Remove team from selection
+        function removeTeam(team) {
+            const checkbox = Array.from(document.querySelectorAll('.team-checkbox'))
+                .find(cb => cb.value === team);
+            if (checkbox) {
+                checkbox.checked = false;
+                updateTeamDisplay();
+            }
+        }
+        
+        // Toggle dropdown (setup in DOMContentLoaded below)
+        
         // Render table
         function renderTable() {
-            const teamSelect = document.getElementById('teamFilter');
-            const selectedTeams = Array.from(teamSelect.selectedOptions).map(opt => opt.value).filter(v => v !== '');
             const posFilter = document.getElementById('posFilter').value;
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
@@ -846,15 +944,35 @@
         }
         
         // Filter listeners
-        document.getElementById('teamFilter').addEventListener('change', renderTable);
+        // Team filter handled by checkbox change events
         document.getElementById('posFilter').addEventListener('change', renderTable);
         document.getElementById('searchInput').addEventListener('input', renderTable);
         document.getElementById('clearFilters').addEventListener('click', function() {
-            const teamSelect = document.getElementById('teamFilter');
-            Array.from(teamSelect.options).forEach(opt => opt.selected = false);
+            // Clear team checkboxes
+            document.querySelectorAll('.team-checkbox').forEach(cb => cb.checked = false);
+            selectedTeams = [];
+            document.getElementById('teamFilterDisplay').innerHTML = '<span style="color: #9ca3af;">All Teams</span>';
+            
+            // Clear other filters
             document.getElementById('posFilter').value = '';
             document.getElementById('searchInput').value = '';
             renderTable();
+        });
+        
+        // Setup team filter dropdown toggle
+        const teamDisplay = document.getElementById('teamFilterDisplay');
+        const teamDropdown = document.getElementById('teamFilterDropdown');
+        
+        teamDisplay.addEventListener('click', function(e) {
+            e.stopPropagation();
+            teamDropdown.style.display = teamDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!teamDropdown.contains(e.target) && e.target !== teamDisplay) {
+                teamDropdown.style.display = 'none';
+            }
         });
         
         // Sortable columns
