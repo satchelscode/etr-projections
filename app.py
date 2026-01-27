@@ -994,35 +994,88 @@ class NBAProjectionSystem:
             return {}
 
     def parse_dfs_projections_csv(self, file_content):
-        """Parse NBA DFS Projections CSV to extract player, team, opponent, and minutes"""
+        """Parse Basketball Monster CSV to extract player, team, opponent, and minutes"""
         try:
             df = pd.read_csv(StringIO(file_content), encoding='utf-8-sig')
-            print(f"DFS Projections CSV columns: {df.columns.tolist()}")
-            print(f"DFS Projections CSV shape: {df.shape}")
+            print(f"Basketball Monster CSV columns: {df.columns.tolist()}")
+            print(f"Basketball Monster CSV shape: {df.shape}")
             
             players_data = []
             for _, row in df.iterrows():
                 try:
-                    # Get minutes value
-                    minutes = float(row.get('Minutes', 0))
+                    # Basketball Monster format:
+                    # - 'minutes' column has projected minutes (m/g)
+                    # - 'full_name' has player name
+                    # - 'team' has team abbreviation
+                    # - 'opponent' has opponent abbreviation
                     
-                    # Only include players with minutes > 0
-                    if pd.notna(minutes) and minutes > 0:
-                        players_data.append({
-                            'player': str(row['Player']).strip(),
-                            'team': str(row['Team']).strip(),
-                            'opponent': str(row['Opp']).strip(),
-                            'position': str(row.get('Pos', 'SG')).strip(),
-                            'minutes': minutes
-                        })
+                    # Get minutes value (could be 'minutes' or 'Minutes')
+                    minutes = None
+                    if 'minutes' in df.columns:
+                        minutes = float(row.get('minutes', 0))
+                    elif 'Minutes' in df.columns:
+                        minutes = float(row.get('Minutes', 0))
+                    
+                    if minutes is None or pd.isna(minutes) or minutes <= 0:
+                        continue
+                    
+                    # Get player name (try 'full_name' first, then 'Player')
+                    player_name = None
+                    if 'full_name' in df.columns:
+                        player_name = str(row['full_name']).strip()
+                    elif 'Player' in df.columns:
+                        player_name = str(row['Player']).strip()
+                    
+                    if not player_name or player_name == 'nan':
+                        continue
+                    
+                    # Get team (try lowercase 'team' first, then 'Team')
+                    team = None
+                    if 'team' in df.columns:
+                        team = str(row['team']).strip()
+                    elif 'Team' in df.columns:
+                        team = str(row['Team']).strip()
+                    
+                    if not team or team == 'nan':
+                        continue
+                    
+                    # Get opponent (try lowercase 'opponent' first, then 'Opp')
+                    opponent = None
+                    if 'opponent' in df.columns:
+                        opponent = str(row['opponent']).strip()
+                    elif 'Opp' in df.columns:
+                        opponent = str(row['Opp']).strip()
+                    
+                    # Clean up opponent format (remove @ if present)
+                    if opponent:
+                        opponent = opponent.replace('@ ', '').replace('@', '').strip()
+                    
+                    # Get position (try lowercase 'position' first, then 'Pos')
+                    position = None
+                    if 'position' in df.columns:
+                        position = str(row['position']).strip()
+                    elif 'Pos' in df.columns:
+                        position = str(row['Pos']).strip()
+                    
+                    if not position or position == 'nan':
+                        position = 'SG'  # default
+                    
+                    players_data.append({
+                        'player': player_name,
+                        'team': team,
+                        'opponent': opponent if opponent else '',
+                        'position': position,
+                        'minutes': minutes
+                    })
                 except Exception as e:
+                    print(f"Error parsing row: {e}")
                     continue
             
-            print(f"Parsed {len(players_data)} players from DFS Projections")
+            print(f"Parsed {len(players_data)} players from Basketball Monster CSV")
             return players_data
             
         except Exception as e:
-            print(f"Error parsing DFS Projections CSV: {e}")
+            print(f"Error parsing Basketball Monster CSV: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -1111,7 +1164,7 @@ def generate_daily():
         dfs_file = request.files.get('dfs_projections')
         
         if not dfs_file:
-            return jsonify({'success': False, 'error': 'NBA DFS Projections CSV file is required'})
+            return jsonify({'success': False, 'error': 'Basketball Monster CSV file is required'})
         
         print(f"Processing file: {dfs_file.filename}")
         
@@ -1119,7 +1172,7 @@ def generate_daily():
         dfs_data = projection_system.parse_dfs_projections_csv(dfs_content)
         
         if not dfs_data:
-            return jsonify({'success': False, 'error': 'No valid data found in DFS Projections file'})
+            return jsonify({'success': False, 'error': 'No valid data found in Basketball Monster file'})
         
         projections = projection_system.generate_daily_projections(dfs_data)
         
