@@ -1463,11 +1463,14 @@ def get_injuries():
             if parent:
                 player_link = parent.find('a')
                 if player_link:
-                    short_name = player_link.text.strip()
-                    all_injured_players.append({
-                        'short_name': short_name,
-                        'status': status
-                    })
+                    # USE THE TITLE ATTRIBUTE - it has the full name!
+                    # Example: <a title="Joel Embiid">J. Embiid</a>
+                    full_name = player_link.get('title', '').strip()
+                    if full_name:
+                        all_injured_players.append({
+                            'full_name': full_name,
+                            'status': status
+                        })
         
         print(f"📋 Found {len(all_injured_players)} injured players total")
         
@@ -1487,62 +1490,21 @@ def get_injuries():
         seen_player_team_pairs = set()
         
         for injured in all_injured_players:
-            short_name = injured['short_name']
+            full_name = injured['full_name']
             status = injured['status']
             
-            # Try to match short name to full name
-            matched_full_name = None
-            matched_team = None
-            
-            # Parse short name: "J. Embiid" -> "J" and "Embiid"
-            parts = short_name.split('. ')
-            if len(parts) == 2:
-                first_initial = parts[0].upper()
-                last_name = parts[1]
-                
-                # Search for matching full name in our player map
-                for full_name, team in player_to_team_map.items():
-                    name_parts = full_name.split(' ')
-                    if len(name_parts) >= 2:
-                        fn_first = name_parts[0]
-                        fn_last = name_parts[-1]
-                        
-                        # Match: first name STARTS WITH the initial, last name matches exactly
-                        # This handles "Joel" matching "J", "Jayson" matching "J", etc.
-                        if (fn_first.upper()[0] == first_initial[0] and 
-                            fn_last.lower() == last_name.lower()):
-                            matched_full_name = full_name
-                            matched_team = team
-                            break
-            else:
-                # Handle names without abbreviation (like "Max Strus", "Obi Toppin")
-                # Try direct match by last name
-                for full_name, team in player_to_team_map.items():
-                    if full_name.lower().endswith(short_name.lower()):
-                        matched_full_name = full_name
-                        matched_team = team
-                        break
-                    
-                    # Try matching by just the last word
-                    short_last = short_name.split()[-1]
-                    full_last = full_name.split()[-1]
-                    if short_last.lower() == full_last.lower():
-                        # Check if any part of the full name matches the first part
-                        if len(short_name.split()) > 1:
-                            short_first = short_name.split()[0]
-                            if full_name.lower().startswith(short_first.lower()):
-                                matched_full_name = full_name
-                                matched_team = team
-                                break
+            # Now we have full names, just match directly!
+            matched_team = player_to_team_map.get(full_name)
             
             if matched_team:
                 # Check if we've already added this player to this team
-                pair_key = f"{matched_team}-{short_name}"
+                pair_key = f"{matched_team}-{full_name}"
                 if pair_key in seen_player_team_pairs:
-                    print(f"   ⏭️  Skipping duplicate: {short_name} already in {matched_team}")
+                    print(f"   ⏭️  Skipping duplicate: {full_name} already in {matched_team}")
                     continue
                     
                 seen_player_team_pairs.add(pair_key)
+                print(f"   ✅ Matched: {full_name} → {matched_team} ({status})")
                 
                 # Add to that team's injury list
                 if matched_team not in injuries_by_team:
@@ -1553,16 +1515,14 @@ def get_injuries():
                     }
                 
                 injuries_by_team[matched_team]['players'].append({
-                    'player': short_name,
-                    'full_name': matched_full_name,
+                    'player': full_name,
+                    'full_name': full_name,
                     'status': status,
                     'full_status': get_full_status(status)
                 })
-                
-                print(f"   ✅ {short_name} → {matched_full_name} ({matched_team})")
             else:
-                unmatched_players.append(short_name)
-                print(f"   ⚠️ Could not match: {short_name}")
+                unmatched_players.append(full_name)
+                print(f"   ⚠️ Could not match: {full_name}")
         
         print(f"\n✅ Matched {sum(len(v['players']) for v in injuries_by_team.values())} players to teams")
         print(f"⚠️ {len(unmatched_players)} players unmatched")
