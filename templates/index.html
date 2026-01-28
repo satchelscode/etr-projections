@@ -1371,36 +1371,38 @@
                     allProjections = data.projections;
                     populateTeamFilter();
                     renderTable();
-                    console.log(`📂 Loaded ${data.projections.length} projections from previous session`);
-                    
-                    // Show a subtle notification that projections were loaded
-                    const notification = document.createElement('div');
-                    notification.style.cssText = `
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        background: #10b981;
-                        color: white;
-                        padding: 12px 20px;
-                        border-radius: 8px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                        z-index: 1000;
-                        font-size: 14px;
-                    `;
-                    notification.textContent = `✅ Loaded ${data.projections.length} projections from last session`;
-                    document.body.appendChild(notification);
-                    
-                    setTimeout(() => {
-                        notification.style.transition = 'opacity 0.5s';
-                        notification.style.opacity = '0';
-                        setTimeout(() => notification.remove(), 500);
-                    }, 3000);
+                    console.log(`📂 Loaded ${data.projections.length} projections from database`);
+                    showProjectionsLoadedNotification(data.projections.length);
                 } else {
-                    console.log('ℹ️  No previous projections found');
+                    console.log('ℹ️  No projections found in database');
                 }
             } catch (error) {
-                console.error('Error loading last projections:', error);
+                console.error('Error loading projections:', error);
             }
+        }
+        
+        function showProjectionsLoadedNotification(count) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 1000;
+                font-size: 14px;
+            `;
+            notification.textContent = `✅ Loaded ${count} projections`;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transition = 'opacity 0.5s';
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 500);
+            }, 3000);
         }
         
         // Load projections when page loads
