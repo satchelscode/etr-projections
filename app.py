@@ -10,6 +10,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import re
+from database import ProjectionDB
 
 app = Flask(__name__)
 
@@ -95,34 +96,15 @@ class NBAProjectionSystem:
         self.redistribution_rates = self.load_redistribution_rates()
         self.tuning_params = self.load_tuning_params()
         
-        # Load the most recent projections from disk (if available)
-        self.last_projections = self.load_last_projections()
+        # Initialize database connection for cross-device persistence
+        self.db = ProjectionDB()
+        
+        # Load the most recent projections from database
+        self.last_projections = self.db.load_projections()
     
     def save_last_projections(self, projections):
-        """Save projections to disk so they persist across server restarts"""
-        try:
-            projections_file = 'models/last_projections.json'
-            with open(projections_file, 'w') as f:
-                json.dump(projections, f)
-            print(f"💾 Saved {len(projections)} projections to disk")
-        except Exception as e:
-            print(f"⚠️  Could not save projections: {e}")
-    
-    def load_last_projections(self):
-        """Load the most recent projections from disk"""
-        try:
-            projections_file = 'models/last_projections.json'
-            if os.path.exists(projections_file):
-                with open(projections_file, 'r') as f:
-                    projections = json.load(f)
-                print(f"📂 Loaded {len(projections)} projections from disk")
-                return projections
-            else:
-                print("ℹ️  No saved projections found")
-                return []
-        except Exception as e:
-            print(f"⚠️  Could not load projections: {e}")
-            return []
+        """Save projections to database so they persist across devices and server restarts"""
+        self.db.save_projections(projections)
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
