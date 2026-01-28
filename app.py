@@ -94,6 +94,35 @@ class NBAProjectionSystem:
         self.opponent_defense = self.load_opponent_defense()
         self.redistribution_rates = self.load_redistribution_rates()
         self.tuning_params = self.load_tuning_params()
+        
+        # Load the most recent projections from disk (if available)
+        self.last_projections = self.load_last_projections()
+    
+    def save_last_projections(self, projections):
+        """Save projections to disk so they persist across server restarts"""
+        try:
+            projections_file = 'models/last_projections.json'
+            with open(projections_file, 'w') as f:
+                json.dump(projections, f)
+            print(f"💾 Saved {len(projections)} projections to disk")
+        except Exception as e:
+            print(f"⚠️  Could not save projections: {e}")
+    
+    def load_last_projections(self):
+        """Load the most recent projections from disk"""
+        try:
+            projections_file = 'models/last_projections.json'
+            if os.path.exists(projections_file):
+                with open(projections_file, 'r') as f:
+                    projections = json.load(f)
+                print(f"📂 Loaded {len(projections)} projections from disk")
+                return projections
+            else:
+                print("ℹ️  No saved projections found")
+                return []
+        except Exception as e:
+            print(f"⚠️  Could not load projections: {e}")
+            return []
     
     def load_learned_caps(self):
         """Load team-specific caps from learned parameters file"""
@@ -1156,6 +1185,24 @@ projection_system = NBAProjectionSystem()
 def index():
     return render_template('index.html')
 
+@app.route('/get_last_projections', methods=['GET'])
+def get_last_projections():
+    """Return the most recently generated projections"""
+    try:
+        projections = projection_system.last_projections
+        return jsonify({
+            'success': True,
+            'projections': projections,
+            'count': len(projections)
+        })
+    except Exception as e:
+        print(f"Error getting last projections: {e}")
+        return jsonify({
+            'success': False,
+            'projections': [],
+            'count': 0
+        })
+
 @app.route('/generate_daily', methods=['POST'])
 def generate_daily():
     try:
@@ -1176,8 +1223,9 @@ def generate_daily():
         
         projections = projection_system.generate_daily_projections(dfs_data)
         
-        # Store projections so get_injuries can use them for player-to-team mapping
+        # Store projections in memory AND save to disk
         projection_system.last_projections = projections
+        projection_system.save_last_projections(projections)
         print(f"✅ Stored {len(projections)} projections for injury matching")
         
         return jsonify({
