@@ -1369,6 +1369,13 @@
                 
                 if (data.success && data.projections && data.projections.length > 0) {
                     allProjections = data.projections;
+                    
+                    // Show the results section and hide empty state
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('resultsTitle').textContent = `${allProjections.length} Projections`;
+                    document.getElementById('lastUpdated').textContent = `Loaded from database`;
+                    
                     populateTeamFilter();
                     renderTable();
                     console.log(`📂 Loaded ${data.projections.length} projections from database`);
