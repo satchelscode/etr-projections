@@ -1040,6 +1040,31 @@ class NBAProjectionSystem:
                     if not player_name or player_name == 'nan':
                         continue
                     
+                    # Basketball Monster name → ETR name mapping
+                    # Some players have different formatting between sources
+                    name_mappings = {
+                        "A.J. Johnson": "AJ Johnson",
+                        "Day'Ron Sharpe": "Day'Ron Sharpe",  # Keep apostrophe
+                        "De'Andre Hunter": "De'Andre Hunter",  # Keep apostrophe
+                        "De'Anthony Melton": "De'Anthony Melton",  # Keep apostrophe
+                        "G.G. Jackson": "GG Jackson",  # Remove periods
+                        "Herb Jones": "Herbert Jones",  # ETR uses full first name
+                        "Ja'Kobe Walter": "Ja'Kobe Walter",  # Keep apostrophe
+                        "Nae'Qwan Tomlin": "Nae'Qwan Tomlin",  # Keep apostrophe
+                        "O.G. Anunoby": "OG Anunoby",  # Remove periods
+                        "R.J. Barrett": "RJ Barrett",  # Remove periods
+                        "Ron Holland": "Ron Holland",  # Same
+                        "Royce O'Neale": "Royce O'Neale",  # Keep apostrophe
+                        "Trey Murphy": "Trey Murphy III",  # ETR includes suffix
+                        "Tristan da Silva": "Tristan da Silva",  # Same
+                        "Walter Clayton": "Walter Clayton Jr.",  # ETR includes suffix
+                        "Zach LaVine": "Zach LaVine",  # Same
+                    }
+                    
+                    # Apply mapping if player name exists in dictionary
+                    if player_name in name_mappings:
+                        player_name = name_mappings[player_name]
+                    
                     # Get team (try lowercase 'team' first, then 'Team')
                     team = None
                     if 'team' in df.columns:
