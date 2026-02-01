@@ -1,152 +1,152 @@
 {
   "DET": {
-    "pts_mult": 0.9526,
+    "pts_mult": 0.9532,
     "ast_mult": 0.9377,
-    "reb_mult": 0.9434
+    "reb_mult": 0.9431
   },
   "CHA": {
-    "pts_mult": 1.0004,
-    "ast_mult": 1.0236,
-    "reb_mult": 0.9597
+    "pts_mult": 1.0013,
+    "ast_mult": 1.0192,
+    "reb_mult": 0.9619
   },
   "BKN": {
-    "pts_mult": 1.0045,
+    "pts_mult": 1.0051,
     "ast_mult": 1.0029,
-    "reb_mult": 0.9911
+    "reb_mult": 0.9908
   },
   "ORL": {
-    "pts_mult": 0.9906,
+    "pts_mult": 0.9912,
     "ast_mult": 1.0099,
-    "reb_mult": 0.974
+    "reb_mult": 0.9737
   },
   "IND": {
-    "pts_mult": 1.0137,
-    "ast_mult": 0.9752,
-    "reb_mult": 1.036
+    "pts_mult": 1.0149,
+    "ast_mult": 0.9774,
+    "reb_mult": 1.0322
   },
   "DEN": {
-    "pts_mult": 0.9733,
+    "pts_mult": 0.9739,
     "ast_mult": 0.9585,
-    "reb_mult": 0.981
+    "reb_mult": 0.9807
   },
   "DAL": {
-    "pts_mult": 1.0505,
-    "ast_mult": 1.0436,
-    "reb_mult": 1.0536
+    "pts_mult": 1.0481,
+    "ast_mult": 1.0357,
+    "reb_mult": 1.0574
   },
   "ATL": {
-    "pts_mult": 1.0207,
-    "ast_mult": 1.0069,
-    "reb_mult": 1.0352
+    "pts_mult": 1.0197,
+    "ast_mult": 1.0084,
+    "reb_mult": 1.0373
   },
   "UTA": {
-    "pts_mult": 1.0754,
+    "pts_mult": 1.076,
     "ast_mult": 1.0785,
-    "reb_mult": 1.0232
+    "reb_mult": 1.0229
   },
   "CLE": {
-    "pts_mult": 0.9728,
+    "pts_mult": 0.9733,
     "ast_mult": 0.9363,
-    "reb_mult": 1.0588
+    "reb_mult": 1.0585
   },
   "MIA": {
-    "pts_mult": 1.0184,
-    "ast_mult": 1.0207,
-    "reb_mult": 1.0034
+    "pts_mult": 1.0188,
+    "ast_mult": 1.0209,
+    "reb_mult": 1.0021
   },
   "PHX": {
-    "pts_mult": 0.9777,
-    "ast_mult": 0.9865,
-    "reb_mult": 0.9747
+    "pts_mult": 0.9783,
+    "ast_mult": 0.9866,
+    "reb_mult": 0.9744
   },
   "LAC": {
-    "pts_mult": 1.005,
+    "pts_mult": 1.0056,
     "ast_mult": 1.0188,
-    "reb_mult": 0.969
+    "reb_mult": 0.9687
   },
   "WAS": {
-    "pts_mult": 1.0476,
-    "ast_mult": 1.0275,
-    "reb_mult": 1.0224
+    "pts_mult": 1.0482,
+    "ast_mult": 1.0276,
+    "reb_mult": 1.0221
   },
   "CHI": {
-    "pts_mult": 1.0421,
-    "ast_mult": 1.0544,
-    "reb_mult": 1.0145
+    "pts_mult": 1.0456,
+    "ast_mult": 1.057,
+    "reb_mult": 1.02
   },
   "LAL": {
-    "pts_mult": 1.0026,
+    "pts_mult": 1.0032,
     "ast_mult": 0.9973,
-    "reb_mult": 0.9831
+    "reb_mult": 0.9828
   },
   "HOU": {
-    "pts_mult": 0.9504,
-    "ast_mult": 0.9688,
-    "reb_mult": 0.9361
+    "pts_mult": 0.9478,
+    "ast_mult": 0.9684,
+    "reb_mult": 0.9392
   },
   "MIL": {
-    "pts_mult": 0.9887,
+    "pts_mult": 0.9893,
     "ast_mult": 0.9579,
-    "reb_mult": 1.0076
+    "reb_mult": 1.0073
   },
   "NYK": {
-    "pts_mult": 0.9685,
+    "pts_mult": 0.9691,
     "ast_mult": 0.9618,
-    "reb_mult": 0.9736
+    "reb_mult": 0.9733
   },
   "POR": {
-    "pts_mult": 1.0101,
+    "pts_mult": 1.0107,
     "ast_mult": 0.9988,
-    "reb_mult": 0.9935
+    "reb_mult": 0.9932
   },
   "SAC": {
-    "pts_mult": 1.0362,
+    "pts_mult": 1.0368,
     "ast_mult": 1.0193,
-    "reb_mult": 1.0448
+    "reb_mult": 1.0445
   },
   "SAS": {
-    "pts_mult": 0.9983,
-    "ast_mult": 1.0128,
-    "reb_mult": 0.9903
+    "pts_mult": 0.9962,
+    "ast_mult": 1.0122,
+    "reb_mult": 0.9883
   },
   "OKC": {
-    "pts_mult": 0.9433,
+    "pts_mult": 0.9439,
     "ast_mult": 0.9692,
-    "reb_mult": 0.9968
+    "reb_mult": 0.9965
   },
   "BOS": {
-    "pts_mult": 0.962,
+    "pts_mult": 0.9625,
     "ast_mult": 0.9818,
-    "reb_mult": 0.9351
+    "reb_mult": 0.9349
   },
   "NOP": {
-    "pts_mult": 1.0513,
-    "ast_mult": 1.0757,
-    "reb_mult": 1.0173
+    "pts_mult": 1.0444,
+    "ast_mult": 1.0636,
+    "reb_mult": 1.0197
   },
   "TOR": {
-    "pts_mult": 0.9558,
+    "pts_mult": 0.9564,
     "ast_mult": 0.9415,
-    "reb_mult": 0.998
+    "reb_mult": 0.9977
   },
   "GSW": {
-    "pts_mult": 0.9877,
+    "pts_mult": 0.9883,
     "ast_mult": 1.0152,
-    "reb_mult": 1.0019
+    "reb_mult": 1.0016
   },
   "MIN": {
-    "pts_mult": 1.006,
-    "ast_mult": 1.0189,
-    "reb_mult": 1.0047
+    "pts_mult": 1.0023,
+    "ast_mult": 1.0353,
+    "reb_mult": 1.0013
   },
   "PHI": {
-    "pts_mult": 0.985,
-    "ast_mult": 0.999,
-    "reb_mult": 1.026
+    "pts_mult": 0.9846,
+    "ast_mult": 0.9966,
+    "reb_mult": 1.027
   },
   "MEM": {
-    "pts_mult": 1.0085,
-    "ast_mult": 1.0011,
-    "reb_mult": 1.051
+    "pts_mult": 1.0111,
+    "ast_mult": 1.0054,
+    "reb_mult": 1.0471
   }
 }
